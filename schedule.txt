@@ -1,0 +1,44 @@
+# "Time" is the window is when the script is allowed to run. You can have multiple windows separated with commas.
+# Example: 1-3am, 2pm-4m, 11:30-11:34 - Play around with these numbers, the system is very flexible. When you run my script it will show you the next time window available for each program.
+
+# "Frequency" is how often the program. m = minutes, h = hours and so on. My script should allow most natural language inputs here. Time towards frequency is only counted when the computer is actively in use. Set as * and it will only run once a day.
+
+# "Date" field is usually set as a range to limit it to run on certain days of the week:
+# Example: m-f, every 2nd Thursday
+
+# Use * for fields that you don't need to fill in.
+
+# Requirements is a comma separated list of additional requirements needed for the script to run. Available ones are as follows:
+#     idle    = Time the computer has been idle for
+#     busy    = Computer must have been in use within time specified
+#     plugged = Power cord must be attached
+#     closed  = Lid must be closed
+#     start   = Only run this many times at startup. 0 = infinite
+#     elapsed = Computer must be used for a certain amount of time in day before running.
+#     online  = Do we have internet access?
+#     random  = Script will run randomly. Example: random 8h will (on average) run every 8 hours. Some days it will run 3+ times, other days not at all.
+
+
+
+
+# A list of examples is presented below. The path in each example has a # before it to ensure it won't actually run.
+# The columns are tab delimited, so it's better if you set your text editor to write actual tabs between columns. Spaces will also work with a minimum of 4 spaces between columns.
+# Edit the above lines with your own schedule:
+
+#Time              Frequency     Date              Requirements           Script Path
+2pm-8pm            *             *                 online                 # a_daily_script.py
+8:30pm-3am         1h            sat-sun           idle 5m, plugged       # backup_script_path_goes_here.sh
+-5pm               *             m-f               random 8h              # A_surprise_everyday.py
+4-6pm              *             2nd Thursday      *                      # mpg123 'Libera - Going Home.mp3'
+*                  *             March 14          *                      # pi_day.py
+*                  *             1st-2nd           *                      # zenity --info --text="Monthly list"
+*                  *             *                 start 1                # run_at_startup.sh
+
+
+
+
+
+
+
+# Not sure if your schedule will work correctly?
+# Run the program with the --testing option or just put a # before each script path to show what it would do.
