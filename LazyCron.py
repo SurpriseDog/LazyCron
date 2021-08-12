@@ -15,7 +15,7 @@ from sd.common import itercount, gohome, quickrun, check_install, shell, rint, t
 
 import sd.chronology as chronos
 from sd.arg_master import easy_parse
-from window_watch import WindowWatch		# nocommit
+from window_watch import WindowWatch			# nocommit
 
 def parse_args():
 	"Parse arguments"
