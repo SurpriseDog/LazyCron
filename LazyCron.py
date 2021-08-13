@@ -11,7 +11,6 @@ import time
 import how_busy
 import scheduler
 
-sys.path.append('sd')
 from sd.common import itercount, gohome, quickrun, check_install, shell, rint, tman, rfs, msgbox
 
 import sd.chronology as chronos
