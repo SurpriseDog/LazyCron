@@ -6,7 +6,7 @@ import sys
 from argparse import ArgumentParser, SUPPRESS
 
 from sd.common import list_get, DotDict
-from columns import auto_cols, undent
+from sd.columns import auto_cols, undent
 
 
 def easy_parse(optionals_list, pos_list=None, **kargs):
