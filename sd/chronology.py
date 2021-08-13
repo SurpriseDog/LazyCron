@@ -7,9 +7,9 @@ import datetime
 from collections import Counter
 from datetime import datetime as dada
 
-from printing import warn
-from numerology import sig
-from structs import bisect_small, search_list
+from common import warn
+from common import sig
+from common import bisect_small, search_list
 
 def int_time():
     return int(time.time())
@@ -380,6 +380,56 @@ def convert_ut_range(unum, **kargs):
 # Test: lmap(fmt_time, *convert_ut_range('3-5pm'))
 
 
+def _gen_conversions():
+    "Generate user time conversions"
+    day = 3600 * 24
+    year = 365.2422 * day
+
+    conversions = dict(
+        seconds=1,
+        minutes=60,
+        hours=3600,
+        days=day,
+        weeks=7 * day,
+        months=30.4167 * day,
+        years=year,
+        decades=10 * year,
+        centuries=100 * year,
+        century=100 * year,
+        millenia=1000 * year,
+        millenium=1000 * year,
+
+        # Esoteric:
+        fortnight=14 * day,
+        quarter=30.4167 * day * 3,
+        jubilees=50 * year,
+        biennium=2 * year,
+        gigasecond=1e9,
+        aeons=1e9 * year, eons=1e9 * year,
+        jiffy=1 / 60, jiffies=1 / 60,
+        shakes=1e-8,
+        svedbergs=1e-13,
+        decasecond=10,
+        hectosecond=100,
+
+        # Nonstandard years
+        tropicalyears=365.24219 * day,
+        gregorianyears=year,
+        siderealyears=365.242190 * day,
+
+        # <1 second
+        plancktimes=5.391e-44, plancks=5.391e-44,
+        yoctoseconds=1e-24, ys=1e-24,
+        zeptoseconds=1e-21, zs=1e-21,
+        attoseconds=1e-18,
+        femtoseconds=1e-15, fs=1e-15,
+        picoseconds=1e-12, ps=1e-12,
+        nanoseconds=1e-09, ns=1e-9,
+        microseconds=1e-06, us=1e-6,
+        milliseconds=1e-3, ms=1e-3)
+    conversions['as'] = 1e-18
+    return conversions
+
 def convert_user_time(unum, default='seconds'):
     '''Convert a user input time like 3.14 days to seconds
     Valid: 3h, 3 hours, 3 a.m., 3pm, 3:14 am, 3:14pm'''
@@ -392,52 +442,7 @@ def convert_user_time(unum, default='seconds'):
     # Build conversion table
     self = convert_user_time
     if not hasattr(self, 'conversions'):
-        day = 3600 * 24
-        year = 365.2422 * day
-
-        self.conversions = dict(
-            seconds=1,
-            minutes=60,
-            hours=3600,
-            days=day,
-            weeks=7 * day,
-            months=30.4167 * day,
-            years=year,
-            decades=10 * year,
-            centuries=100 * year,
-            century=100 * year,
-            millenia=1000 * year,
-            millenium=1000 * year,
-
-            # Esoteric:
-            fortnight=14 * day,
-            quarter=30.4167 * day * 3,
-            jubilees=50 * year,
-            biennium=2 * year,
-            gigasecond=1e9,
-            aeons=1e9 * year, eons=1e9 * year,
-            jiffy=1 / 60, jiffies=1 / 60,
-            shakes=1e-8,
-            svedbergs=1e-13,
-            decasecond=10,
-            hectosecond=100,
-
-            # Nonstandard years
-            tropicalyears=365.24219 * day,
-            gregorianyears=year,
-            siderealyears=365.242190 * day,
-
-            # <1 second
-            plancktimes=5.391e-44, plancks=5.391e-44,
-            yoctoseconds=1e-24, ys=1e-24,
-            zeptoseconds=1e-21, zs=1e-21,
-            attoseconds=1e-18,
-            femtoseconds=1e-15, fs=1e-15,
-            picoseconds=1e-12, ps=1e-12,
-            nanoseconds=1e-09, ns=1e-9,
-            microseconds=1e-06, us=1e-6,
-            milliseconds=1e-3, ms=1e-3)
-        self.conversions['as'] = 1e-18
+        self.conversions = _gen_conversions()
     conversions = self.conversions
 
     # Primary units
@@ -482,8 +487,9 @@ def timer(target=60, polling=0.1):
     "Countdown from a target time in the terminal"
     start = time.time()
     cur = 0
+
     while True:
-        remaining = target - int(time.time() - start)
+        remaining = convert_user_time(target) - int(time.time() - start)
         if remaining != cur:
             cur = remaining
             if remaining >= 0:
