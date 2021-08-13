@@ -2,7 +2,7 @@
 # Manipulate columns of text
 
 from shutil import get_terminal_size
-from common import map_nested
+from sd.common import map_nested
 
 TERM_WIDTH = max(get_terminal_size().columns, 20)
 
