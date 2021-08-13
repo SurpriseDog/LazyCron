@@ -5,7 +5,7 @@ import os
 import sys
 from argparse import ArgumentParser, SUPPRESS
 
-from common import list_get, DotDict
+from sd.common import list_get, DotDict
 from columns import auto_cols, undent
 
 
