@@ -10,7 +10,7 @@ Type ./LazyCron.py -h for help and full list of options:
 
 Bonus functionality:
 
-	--idle will put the computer to sleep after so many minutes, but it will check first to make sure you don't have any disk or network activity. I find this more useful than using the default sleep timer which will put the computer to sleep regardless of what's going on like in the middle of a long slow file download or file copy operation.
+	--idle will put the computer to sleep after so many minutes. If plugged in, it will check first to make sure you don't have any disk or network activity. I find this more useful than using the default sleep timer which will put the computer to sleep regardless of what's going on like in the middle of a long slow file download or file copy operation.
 
 ====
 
