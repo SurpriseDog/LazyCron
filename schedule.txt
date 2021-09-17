@@ -1,17 +1,12 @@
 # View the README.MD file to understand what these columns mean.
 
+# An example script line is provided below.
+# Add your own, but don't forget to remove the # sign at the start of the Script path
+
+
+
 #Time              Frequency     Date              Requirements           Script Path
-2pm-8pm            *             *                 online                 # a_daily_script.py
-8:30pm-3am         1h            sat-sun           idle 5m, plugged       # backup_script_path_goes_here.sh
--5pm               *             m-f               random 8h              # A_surprise_everyday.py
-4-6pm              *             2nd Thursday      *                      # mpg123 'Libera - Going Home.mp3'
-*                  *             March 14          *                      # pi_day.py
-*                  *             1st-2nd           *                      # zenity --info --text="Monthly list"
-*                  *             *                 start 1                # run_at_startup.sh
-
-
-
-
+2pm-8pm            1h            sat-sun           online, idle5m         # an_example_script.sh
 
 
 
