@@ -1,14 +1,15 @@
 # View the README.MD file to understand what these columns mean.
 
+# Columns are tab delimited, meaning you must provide a tab or a minimum of 4 spaces between them!
+
 # An example script line is provided below.
 # Add your own, but don't forget to remove the # sign at the start of the Script path
+
+# Not sure if your schedule will work correctly?
+# Run the program with the --testing option or just put a # before each script path to show what it would do.
+
 
 
 
 #Time              Frequency     Date              Requirements           Script Path
-2pm-8pm            1h            sat-sun           online, idle5m         # an_example_script.sh
-
-
-
-# Not sure if your schedule will work correctly?
-# Run the program with the --testing option or just put a # before each script path to show what it would do.
+2pm-8pm            1h            sat-sun           online, idle 5m        # an_example_script.sh
