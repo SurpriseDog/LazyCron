@@ -3,7 +3,7 @@
 # Columns are tab delimited, meaning you must provide a tab or a minimum of 4 spaces between them!
 
 # An example script line is provided below.
-# Add your own, but don't forget to remove the # sign at the start of the Script path
+# Add your own, but don't forget to remove the # sign at the start of the Script Path
 
 # Not sure if your schedule will work correctly?
 # Run the program with the --testing option or just put a # before each script path to show what it would do.
