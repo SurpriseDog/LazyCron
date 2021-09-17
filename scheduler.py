@@ -362,8 +362,10 @@ class App:
                 aprint("\tIdle for too long:", idle, '>', self.reqs.busy, v=-1)
                 return False
             if self.reqs.random and random.random() > polling_rate / self.reqs.random:
+                # Random value not reached
                 return False
             if self.reqs.start and len(self.history) >= self.reqs.start:
+                #
                 return False
             if self.reqs.elapsed and elapsed < self.reqs.elapsed:
                 return False
