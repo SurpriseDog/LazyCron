@@ -248,7 +248,8 @@ def update_parser(lines, parser=None, hidden=False, positionals=False, verbose=F
         if typ == list:
             nargs = '*'
             typ = str
-            default = []
+            if default == '':
+                default = []
         elif isinstance(typ, int):
             if positionals and typ == 1:
                 nargs = None
