@@ -74,8 +74,8 @@ def get_day(day, cycle, today=None):
 
 def run_proc(cmd, log):
     "Spawn a thread to run a command and then write to log if needed."
-    ofilename = unique_filename(log+'.log')
-    efilename = unique_filename(log+'.err')
+    ofilename = unique_filename(safe_filename(log)+'.log')
+    efilename = unique_filename(safe_filename(log)+'.err')
 
     ofile = open(ofilename, mode='w')
     efile = open(efilename, mode='w')
@@ -369,7 +369,7 @@ class App:
                 return False
             if self.reqs.elapsed and elapsed < self.reqs.elapsed:
                 return False
-            if self.reqs.online and not check_internet:
+            if self.reqs.online and not check_internet():
                 aprint("\tNot Online", v=-1)
                 return False
 

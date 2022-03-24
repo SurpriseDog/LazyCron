@@ -65,7 +65,7 @@ Examples: m-f, every 2nd Thursday
 # Bonus functionality:
 
 
-`--idle` will put the computer to sleep after so many minutes. If plugged in, it will check first to make sure you don't have any disk or network activity. I find this more useful than using the default sleep timer, which will put the computer to sleep regardless of what's going on (e.g. it's in the middle of a long, slow file download or file copy operation).
+`--idle (minutes)` will put the computer to sleep after so many minutes. If plugged in, it will check first to make sure you don't have any disk or network activity. I find this more useful than using the default sleep timer, which will put the computer to sleep regardless of what's going on (e.g. it's in the middle of a long, slow file download or file copy operation).
 
 
 # Installation:
@@ -73,7 +73,7 @@ Examples: m-f, every 2nd Thursday
 The following utilities are required:
 
   * `xprintidle` to get the number of seconds computer has been idle.
-  * `systat` package to get iostat which is used to measure disk activity before putting computer to sleep.
+  * `sysstat` package to get iostat which is used to measure disk activity before putting computer to sleep.
 
 	You can get these by typing:
 
@@ -85,6 +85,6 @@ The following utilities are required:
 
  * Edit schedule.txt with your own personal programs.
  * Run ./LazyCron.py
- * Type ./LazyCron.py -h for help and full list of options:
+ * Type ./LazyCron.py -h for help and full list of options
 
 Not sure if your schedule will work correctly? Run the program with the --testing option or just put a `#` before each script path to show what it would do.

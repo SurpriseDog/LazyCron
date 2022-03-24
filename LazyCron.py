@@ -11,10 +11,10 @@ import time
 import how_busy
 import scheduler
 
-from sd.common import itercount, gohome, quickrun, check_install, shell, rint, tman, rfs, msgbox
+from sd.common import itercount, gohome, quickrun, check_install, shell, rint, tman, rfs, msgbox, spawn
 
 import sd.chronology as chronos
-from sd.arg_master import easy_parse
+from sd.easy_args import easy_parse
 
 def parse_args():
     "Parse arguments"
@@ -82,6 +82,7 @@ def main(args):
     idle = 0                    # Seconds without user inteaction.
     elapsed = 0                 # Total time Computer has spent not idle
     total_idle = 0
+    missing = 0                 # Missing time after computer was sleeping
     last_idle = 0
     timestamp = time.time()     # Timestamp at start of loop
     last_schedule_read = 0      # last time the schedule file was read
