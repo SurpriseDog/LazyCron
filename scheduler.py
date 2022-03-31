@@ -73,9 +73,12 @@ def get_day(day, cycle, today=None):
 
 
 def run_proc(cmd, log):
+    folder, file = os.path.split(log)
+    log = os.path.join(folder, safe_filename(file))
+
     "Spawn a thread to run a command and then write to log if needed."
-    ofilename = unique_filename(safe_filename(log)+'.log')
-    efilename = unique_filename(safe_filename(log)+'.err')
+    ofilename = unique_filename(log+'.log')
+    efilename = unique_filename(log+'.err')
 
     ofile = open(ofilename, mode='w')
     efile = open(efilename, mode='w')
