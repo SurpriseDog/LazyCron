@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import os
+import re
 import time
 import random
 import datetime
@@ -10,8 +11,8 @@ from datetime import datetime as dada
 import battery_watcher
 import sd.chronology as chronos
 
-from sd.common import spawn, mkdir, joiner, safe_filename, error, read_csv, check_internet
-from sd.common import search_list, read_state, DotDict, Eprinter, warn, read_val, msgbox, unique_filename
+from common import spawn, mkdir, joiner, safe_filename, error, read_csv, check_internet
+from common import search_list, read_state, DotDict, Eprinter, warn, read_val, msgbox, unique_filename
 from sd.columns import indenter
 
 EP = Eprinter()
@@ -97,6 +98,7 @@ def run_proc(cmd, log):
         print("Errors in:", efilename)
         msgbox(cmd, "returned code", str(code), '\n', 'Errors in', efilename)
 
+    # Remove file if nothing was written to them
     if not oflag:
         os.remove(ofilename)
     if not eflag:
@@ -397,9 +399,14 @@ class App:
             dirname = os.path.dirname(self.path)
             if not os.path.exists(dirname):
                 dirname = None
-            _que, self.thread = spawn(run_proc, self.path, log=log_file)
+            if self.path.startswith('msgbox '):
+                msg = re.sub('msgbox ', '', self.path).strip().strip('"').strip("'")
+                msgbox(msg)
+                self.thread = None
+            else:
+                _que, self.thread = spawn(run_proc, self.path, log=log_file)
         aprint(text, self.name, v=1)
-        if self.history:
+        if len(self.history) >= 2:
             print(joiner(', ', *self.history))
 
         return True

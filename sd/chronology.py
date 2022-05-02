@@ -430,6 +430,7 @@ def _gen_conversions():
     conversions['as'] = 1e-18
     return conversions
 
+
 def convert_user_time(unum, default='seconds'):
     '''Convert a user input time like 3.14 days to seconds
     Valid: 3h, 3 hours, 3 a.m., 3pm, 3:14 am, 3:14pm'''

@@ -15,6 +15,7 @@ from sd.common import itercount, gohome, quickrun, check_install, shell, rint, t
 
 import sd.chronology as chronos
 from sd.easy_args import easy_parse
+check_install('xprintidle', msg="sudo apt install xprintidle")
 
 def parse_args():
     "Parse arguments"
@@ -74,12 +75,11 @@ def main(args):
         check_install('iostat', 'sar',
                       msg='''sudo apt install sysstat sar
                       --idle requires iostat () to determine if the computer can be put to sleep.''')
-    check_install('xprintidle', msg="sudo apt install xprintidle")
 
     schedule_file = args.schedule   # Tab seperated input file
     testing_mode = args.testing     # Don't actually do anything
 
-    idle = 0                    # Seconds without user inteaction.
+    idle = 0                    # Seconds without user interaction.
     elapsed = 0                 # Total time Computer has spent not idle
     total_idle = 0
     missing = 0                 # Missing time after computer was sleeping
