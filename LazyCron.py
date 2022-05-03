@@ -8,14 +8,15 @@ import os
 import sys
 import time
 
+
+import sd.chronology as chronos
+from sd.common import itercount, gohome, quickrun, check_install, shell, rint, tman, rfs, msgbox, spawn
+check_install('xprintidle', msg="sudo apt install xprintidle")
+
 import how_busy
 import scheduler
 
-from sd.common import itercount, gohome, quickrun, check_install, shell, rint, tman, rfs, msgbox, spawn
-
-import sd.chronology as chronos
 from sd.easy_args import easy_parse
-check_install('xprintidle', msg="sudo apt install xprintidle")
 
 def parse_args():
     "Parse arguments"
