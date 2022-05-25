@@ -1,3 +1,13 @@
+1 I am being imported by:
+     importlib._bootstrap
+     importlib._bootstrap_external
+     importlib._bootstrap
+     importlib._bootstrap
+     importlib._bootstrap
+     __main__
+
+
+
 #!/usr/bin/python3
 
 import os
@@ -13,8 +23,8 @@ from sd.msgbox import msgbox
 import sd.chronology as chronos
 
 
-from common import spawn, mkdir, joiner, safe_filename, error, read_csv, check_internet
-from common import search_list, read_state, DotDict, Eprinter, warn, read_val, unique_filename
+from sd.common import spawn, mkdir, joiner, safe_filename, error, read_csv, check_internet
+from sd.common import search_list, read_state, DotDict, Eprinter, warn, read_val, unique_filename
 from sd.columns import indenter
 
 EP = Eprinter()
