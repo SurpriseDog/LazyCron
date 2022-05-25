@@ -13,10 +13,10 @@ import sd.chronology as chronos
 
 import how_busy
 import scheduler
-from msgbox import msgbox
 from timewatch import TimeWatch
-from sd.common import itercount, gohome, check_install, tman, rfs
+from sd.msgbox import msgbox
 from sd.easy_args import easy_parse
+from sd.common import itercount, gohome, check_install, tman, rfs
 
 def parse_args():
     "Parse arguments"
