@@ -1,15 +1,16 @@
+# Each line here can run a program during a time window and with given conditions.
 # View the README.MD file to understand what these columns mean.
-
 # Columns are tab delimited, meaning you must provide a tab or a minimum of 4 spaces between them!
-
 # An example script line is provided below.
 # Add your own, but don't forget to remove the # sign at the start of the Script Path
 
+
+
+
+
+#Time              Frequency     Date              Requirements          Script Path
+2pm-8pm            1h            sat-sun           online, idle 5m       msgbox "You could run an script on this line. Edit schedule.txt to delete this line and add your own programs"
+*                  *             *                 start 0               msgbox "LazyCron is working! Edit schedule.txt to delete this line and add your own programs"
+
 # Not sure if your schedule will work correctly?
 # Run the program with the --testing option or just put a # before each script path to show what it would do.
-
-
-
-
-#Time              Frequency     Date              Requirements           Script Path
-2pm-8pm            1h            sat-sun           online, idle 5m        # an_example_script.sh

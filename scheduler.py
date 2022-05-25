@@ -9,10 +9,12 @@ import subprocess
 from datetime import datetime as dada
 
 import battery_watcher
+from msgbox import msgbox
 import sd.chronology as chronos
 
+
 from common import spawn, mkdir, joiner, safe_filename, error, read_csv, check_internet
-from common import search_list, read_state, DotDict, Eprinter, warn, read_val, msgbox, unique_filename
+from common import search_list, read_state, DotDict, Eprinter, warn, read_val, unique_filename
 from sd.columns import indenter
 
 EP = Eprinter()
@@ -400,7 +402,7 @@ class App:
             if not os.path.exists(dirname):
                 dirname = None
             if self.path.startswith('msgbox '):
-                msg = re.sub('msgbox ', '', self.path).strip().strip('"').strip("'")
+                msg = re.sub('^msgbox ', '', self.path).strip().strip('"').strip("'")
                 msgbox(msg)
                 self.thread = None
             else:
