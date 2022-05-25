@@ -9,7 +9,7 @@ import subprocess
 from datetime import datetime as dada
 
 import battery_watcher
-from msgbox import msgbox
+from sd.msgbox import msgbox
 import sd.chronology as chronos
 
 
