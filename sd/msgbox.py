@@ -12,7 +12,8 @@ from importlib.util import find_spec
 from sd.common import play
 from sd.columns import indenter
 from sd.common import quote, warn
-from sd.common import srun, spawn, quickrun
+from sd.common import srun, quickrun
+from sd.common import spawn
 
 # Import PyQt and fallback on tkinter otherwise
 if find_spec("PyQt5"):
