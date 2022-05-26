@@ -153,7 +153,7 @@ class App:
         self.args = args            # Preserve initial setup args
         self.path = args['path']    # Path to script
         self.thread = None          # Thread starting running process
-        self.log_dir = 'logs'
+        self.log_dir = '/tmp/LazyCron_logs'
         mkdir(self.log_dir)
         name = list(indenter(os.path.basename(self.path), wrap=64))
         if len(name) > 1:
