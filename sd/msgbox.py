@@ -12,8 +12,8 @@ from importlib.util import find_spec
 from sd.common import play
 from sd.columns import indenter
 from sd.common import quote, warn
-from sd.common import srun, quickrun
-from sd.common import spawn
+from sd.bash import srun, quickrun
+from sd.multiball import spawn
 
 # Import PyQt and fallback on tkinter otherwise
 if find_spec("PyQt5"):
@@ -154,7 +154,7 @@ def msgbox(*args, wrap=640, wait=False, throwerr=False):
         warn("\nInstall PyQt5, tkinter or zenity to get this message on the desktop:")
         print(msg)
         if throwerr:
-            raise ValueErorr("Cannot show msgbox")
+            raise ValueError("Cannot show msgbox")
         return False
 
     return True

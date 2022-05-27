@@ -2,7 +2,8 @@
 
 import sys
 import subprocess
-from sd.common import rint, spawn, check_install, error
+from sd.multiball import spawn
+from sd.common import rint, check_install, error
 from sd.chronology import local_time, fmt_time, msleep
 
 

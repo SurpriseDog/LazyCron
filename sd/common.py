@@ -6,19 +6,34 @@ import os
 import re
 import sys
 import csv
-import time
 import math
-import queue
+import time
 import shutil
 import random
 import socket
-import threading
-import subprocess
+from bash import srun
 from urllib.parse import urlparse
 
 
 def rint(num):
     return str(int(round(num)))
+
+
+def quote(text):
+    "Wrap a string in the minimum number of quotes to be quotable"
+    for q in ('"', "'", "'''"):
+        if q not in text:
+            break
+    else:
+        return repr(text)
+    if "\n" in text:
+        q = "'''"
+    return q + text + q
+
+
+def set_volume(level=80):
+    "Set computer master volume"
+    srun("amixer -D pulse sset Master " + str(level) + "% on")
 
 
 def get_volume():
@@ -27,11 +42,6 @@ def get_volume():
         if 'Playback' in line and '%' in line:
             cur_level.append(int(re.split('[\\[\\]]', line)[1][:-1]))
     return int(sum(cur_level) / len(cur_level))
-
-
-def set_volume(level=80):
-    "Set computer master volume"
-    srun("amixer -D pulse sset Master " + str(level) + "% on")
 
 
 def play(filename, volume=80, player='', opts='', **kargs):
@@ -50,23 +60,6 @@ def play(filename, volume=80, player='', opts='', **kargs):
             player = 'mpv'  # 'aplay'
     quickrun(player, opts, filename, **kargs)
     set_volume(current_vol)
-
-
-def srun(*cmds, **kargs):
-    "Split all text before quick run"
-    return quickrun(flatten([str(item).split() for item in cmds]), **kargs)
-
-
-def quote(text):
-    "Wrap a string in the minimum number of quotes to be quotable"
-    for q in ('"', "'", "'''"):
-        if q not in text:
-            break
-    else:
-        return repr(text)
-    if "\n" in text:
-        q = "'''"
-    return q + text + q
 
 
 def map_nested(func, array):
@@ -102,6 +95,18 @@ def unique_filename(filename):
     while os.path.exists(filename + str(extra) + ext):
         extra += 1
     return filename + str(extra) + ext
+
+
+def undent(text, tab=''):
+    "Remove whitespace at the beginning of lines of text"
+    return '\n'.join([tab + line.lstrip() for line in text.splitlines()])
+
+
+def warn(*args, header="\n\nWarning:", sep=' ', delay=1 / 64, confirm=False):
+    msg = undent(sep.join(list(map(str, args))))
+    time.sleep(eprint(msg, header=header, v=2) * delay)
+    if confirm:
+        _nul = input()
 
 
 class DotDict(dict):
@@ -404,19 +409,6 @@ def percent(num, digits=0):
         return sig(num * 100, digits) + '%'
 
 
-def sorted_array(array, column=-1, reverse=False):
-    "Return sorted 2d array line by line"
-    pairs = [(line[column], index) for index, line in enumerate(array)]
-    for _val, index in sorted(pairs, reverse=reverse):
-        # print(index, val)
-        yield array[index]
-
-
-def avg(lis):
-    "Average a list"
-    return sum(lis) / len(lis)
-
-
 def flatten(tree):
     "Flatten a nested list, tuple or dict of any depth into a flat list"
     # For big data sets use this: https://stackoverflow.com/a/45323085/11343425
@@ -437,71 +429,17 @@ def flatten(tree):
     return out
 
 
-def undent(text, tab=''):
-    "Remove whitespace at the beginning of lines of text"
-    return '\n'.join([tab + line.lstrip() for line in text.splitlines()])
+def sorted_array(array, column=-1, reverse=False):
+    "Return sorted 2d array line by line"
+    pairs = [(line[column], index) for index, line in enumerate(array)]
+    for _val, index in sorted(pairs, reverse=reverse):
+        # print(index, val)
+        yield array[index]
 
 
-def warn(*args, header="\n\nWarning:", sep=' ', delay=1 / 64, confirm=False):
-    msg = undent(sep.join(list(map(str, args))))
-    time.sleep(eprint(msg, header=header, v=2) * delay)
-    if confirm:
-        _nul = input()
-
-
-def quickrun(*cmd, check=False, encoding='utf-8', errors='replace', mode='w', stdin=None,
-             verbose=0, testing=False, ofile=None, trifecta=False, hidewarning=False, **kargs):
-    '''Run a command, list of commands as arguments or any combination therof and return
-    the output is a list of decoded lines.
-    check    = if the process exits with a non-zero exit code then quit
-    testing  = Print command and don't do anything.
-    ofile    = output file
-    mode     = output file write mode
-    trifecta = return (returncode, stdout, stderr)
-    stdin    = standard input (auto converted to bytes)
-    '''
-    cmd = list(map(str, flatten(cmd)))
-    if len(cmd) == 1:
-        cmd = cmd[0]
-
-    if testing:
-        print("Not running command:", cmd)
-        return []
-
-    if verbose:
-        print("Running command:", cmd)
-        print("               =", ' '.join(cmd))
-
-    if ofile:
-        output = open(ofile, mode=mode)
-    else:
-        output = subprocess.PIPE
-
-    if stdin:
-        if type(stdin) != bytes:
-            stdin = stdin.encode()
-
-    # Run the command and get return value
-    ret = subprocess.run(cmd, check=check, stdout=output, stderr=output, input=stdin, **kargs)
-    code = ret.returncode
-    stdout = ret.stdout.decode(encoding=encoding, errors=errors).splitlines() if ret.stdout else []
-    stderr = ret.stderr.decode(encoding=encoding, errors=errors).splitlines() if ret.stderr else []
-
-    if ofile:
-        output.close()
-        return []
-
-    if trifecta:
-        return code, stdout, stderr
-
-    if code and not hidewarning:
-        warn("Process returned code:", code)
-
-    if not hidewarning:
-        for line in stderr:
-            print(line)
-
-    return stdout
+def avg(lis):
+    "Average a list"
+    return sum(lis) / len(lis)
 
 
 class Eprinter:
@@ -673,77 +611,6 @@ def rfs(num, mult=1000, digits=3, order=' KMGTPEZYB', suffix='B', space=' '):
     return str(num) + suffix        # Never called, but needed for pylint
 
 
-def spawn(func, *args, daemon=True, delay=0, **kargs):
-    '''Spawn a function to run seperately and return the que
-    waits for delay seconds before running
-    Get the results with que.get()
-    daemon = running in background, will shutdown automatically when main thread exits
-    Check if the thread is still running with thread.is_alive()
-    print('func=', func, id(func))'''
-    # replaces fork_cmd, mcall
-
-    def worker():
-        if delay:
-            time.sleep(delay)
-        ret = func(*args, **kargs)
-        que.put(ret)
-
-    que = queue.Queue()
-    # print('args=', args)
-    thread = threading.Thread(target=worker)
-    thread.daemon = daemon
-    thread.start()
-    return que, thread
-
-
-class _TmanObj():
-    "Used for ThreadManager"
-
-    def __init__(self, func, *args, delay=0, **kargs):
-        self.start = time.time()
-        self.que, self.thread = spawn(func, *args, delay=delay, **kargs)
-
-    def age(self):
-        return time.time() - self.start
-
-    def is_alive(self):
-        return self.thread.is_alive()
-
-
-class ThreadManager():
-    "Maintain a list of threads and when they were started, query() to see if done."
-
-    def __init__(self):
-        self.threads = dict()
-
-    def query(self, func, *args, delay=0, max_age=0, **kargs):
-        "Start thread if new, return status, que.get()"
-        serial = id(func)
-
-        obj = self.threads.get(serial, None)
-        if max_age and obj and obj.age() > max_age:
-            print("Thread aged out")
-            del obj
-            obj = None
-        if obj and obj.is_alive():
-            print("Can't get results now, we got quilting to do!")
-            return False, None
-        if obj:
-            del self.threads[serial]
-            return True, obj.que.get()
-
-        # print("Starting thread!")
-        obj = _TmanObj(func, *args, delay=delay, **kargs)
-        self.threads[serial] = obj
-        return False, None
-
-    def remove(self, func):
-        "Remove thread if in dict"
-        serial = id(func)
-        if serial in self.threads:
-            del self.threads[serial]
-
-
 def check_install(*programs, msg='', quitonerr=True):
     '''Check if program is installed (and reccomend procedure to install)
     programs is the list of programs to test
@@ -783,8 +650,6 @@ def itercount(start=0, step=1):
         x += step
 
 
-tman = ThreadManager()  # pylint: disable=C0103
-qrun = quickrun     # pylint: disable=C0103
 
 '''
 &&&&%%%%%&@@@@&&&%%%%##%%%#%%&@@&&&&%%%%%%/%&&%%%%%%%%%%%&&&%%%%%&&&@@@@&%%%%%%%
@@ -826,5 +691,5 @@ qrun = quickrun     # pylint: disable=C0103
 Generated by https://github.com/SurpriseDog/Star-Wrangler
 a Python tool for picking only the required code from source files
 written by SurpriseDog at: https://github.com/SurpriseDog
-2022-05-25
+2022-05-26
 '''

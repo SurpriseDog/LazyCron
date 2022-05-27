@@ -8,15 +8,15 @@ import os
 import sys
 import time
 
-
-import sd.chronology as chronos
-
 import how_busy
 import scheduler
 from timewatch import TimeWatch
+import sd.chronology as chronos
+
 from sd.msgbox import msgbox
 from sd.easy_args import easy_parse
-from sd.common import itercount, gohome, check_install, tman, rfs
+from sd.multiball import tman
+from sd.common import itercount, gohome, check_install, rfs
 
 def parse_args():
     "Parse arguments"
@@ -85,7 +85,7 @@ def main(args):
     for counter in itercount():
         # Sleep at the end of every loop
         missing = tw.sleep(polling_rate)
-        while missing > polling_rate / 10:
+        while missing > 2 and missing > polling_rate / 10:
             missing = tw.sleep(polling_rate)
             print("Unaccounted for time during sleep:", chronos.fmt_time(missing))
             # Loop again to avoid edge case where the machine wakes up and is immediately put back to sleep
