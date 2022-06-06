@@ -149,8 +149,6 @@ if __name__ == "__main__":
                       --idle requires iostat () to determine if the computer can be put to sleep.''')
     # Min level to print messages:
     scheduler.EP.verbose = 1 - UA.verbose
-    if not os.path.isdir(UA.logs):
-        error("Can't find", UA.logs)
     scheduler.LOG_DIR = UA.logs
     mkdir(UA.logs)
     gohome()
