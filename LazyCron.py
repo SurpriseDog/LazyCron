@@ -5,7 +5,6 @@
 ################################################################################
 
 import os
-import sys
 import time
 
 import how_busy
@@ -15,8 +14,7 @@ import sd.chronology as chronos
 
 from sd.msgbox import msgbox
 from sd.easy_args import easy_parse
-from sd.multiball import tman
-from sd.common import itercount, gohome, check_install, rfs
+from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, error, tman
 
 def parse_args():
     "Parse arguments"
@@ -33,6 +31,8 @@ def parse_args():
     "What messages to print",
     ['testing', '', bool],
     "Do everything, but actually run the scripts.",
+    ['logs', '', str, '/tmp/LazyCron_logs'],
+    "Logging directory",
     ['skip', '', bool],
     "Don't run apps on startup, wait a bit.",
     ['stagger', '', float, 0],
@@ -71,32 +71,33 @@ def is_busy(min_net=10e3, min_disk=1e6):
 
 
 def main(args):
-    polling_rate = args.polling_rate * 60   # Time to rest at the end of every loop
+    polling_rate = 0                        # Time to rest at the end of every loop
     idle_sleep = args.idle * 60             # Go to sleep after this long plugged in
     schedule_file = args.schedule           # Tab seperated input file
     testing_mode = args.testing             # Don't actually do anything
+    verbose = args.verbose                  # Verbosity level
 
-    tw = TimeWatch(verbose=args.verbose)
+    tw = TimeWatch(verbose=verbose)
     last_schedule_read = 0                  # last time the schedule file was read
     last_run = 0                            # Time when the last program was started
-    schedule_apps = []
-    cur_day = time.strftime('%d')
+    schedule_apps = []                      # Apps found in schedule.txt
+    cur_day = time.localtime().tm_yday      # Used for checking for new day
 
     for counter in itercount():
         # Sleep at the end of every loop
         missing = tw.sleep(polling_rate)
         while missing > 2 and missing > polling_rate / 10:
-            missing = tw.sleep(polling_rate)
-            print("Unaccounted for time during sleep:", chronos.fmt_time(missing))
             # Loop again to avoid edge case where the machine wakes up and is immediately put back to sleep
+            if verbose >= 2:
+                print("Unaccounted for time during sleep:", chronos.fmt_time(missing))
+            missing = tw.sleep(polling_rate)
         polling_rate = args.polling_rate * 60
 
         # Check for a new day
-        if time.strftime('%d') != cur_day:
+        if time.localtime().tm_yday != cur_day:
             tw.reset()
-            cur_day = time.strftime('%d')
-            print(time.strftime('\n\nToday is %A, %-m-%d'))
-            print('#'*80)
+            cur_day = time.localtime().tm_yday
+            print(time.strftime('\n\nToday is %A, %-m-%d'), '\n' + '#' * 80)
 
 
         # Read the schedule file if it's been updated
@@ -104,19 +105,14 @@ def main(args):
             if last_schedule_read:
                 print("\n\nSchedule file updated:")
             last_schedule_read = time.time()
-            try:
-                schedule_apps = scheduler.read_schedule(schedule_apps, schedule_file)
-            except RuntimeError:
-                if counter:
-                    msgbox("Error reading:", schedule_file)
-                else:
-                    sys.exit(1)
+            schedule_apps = scheduler.read_schedule(schedule_apps, schedule_file, msgbox if counter else warn)
 
 
         # Run scripts if enough elapsed time has passed
         for proc in schedule_apps:
             if args.stagger and (time.time() - last_run) / 60 < args.stagger:
                 break
+            proc.flush_que()
             if proc.in_window() and proc.next_elapsed <= tw.elapsed:
                 if args.skip and counter < 8:
                     testing = True
@@ -145,9 +141,6 @@ def main(args):
                     polling_rate = 2
 
 
-
-
-
 if __name__ == "__main__":
     UA = parse_args()
     if UA.idle:
@@ -156,5 +149,9 @@ if __name__ == "__main__":
                       --idle requires iostat () to determine if the computer can be put to sleep.''')
     # Min level to print messages:
     scheduler.EP.verbose = 1 - UA.verbose
+    if not os.path.isdir(UA.logs):
+        error("Can't find", UA.logs)
+    scheduler.LOG_DIR = UA.logs
+    mkdir(UA.logs)
     gohome()
     main(UA)

@@ -2,8 +2,7 @@
 
 import sys
 import subprocess
-from sd.multiball import spawn
-from sd.common import rint, check_install, error
+from sd.common import rint, check_install, error, spawn
 from sd.chronology import local_time, fmt_time, msleep
 
 
@@ -36,7 +35,8 @@ class TimeWatch:
 
     def sleep(self, seconds):
         "Sleep for seconds and track missing time"
-
+        if seconds <= 0:
+            return 0
         missing = msleep(seconds)
         self.update_idle()
         if missing / seconds > 0.01 and self.verbose >= 2:
@@ -63,7 +63,7 @@ class TimeWatch:
             self.idle = self._raw
         self.elapsed += self.idle
 
-        if self.verbose >= 2:
+        if self.verbose >= 3:
             print(local_time(), 'Elapsed:', fmt_time(self.elapsed), 'Idle:', rint(self.idle), 'Raw:', rint(self._raw))
 
     def sleepy_time(self,):

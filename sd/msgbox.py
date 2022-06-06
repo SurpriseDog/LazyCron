@@ -12,8 +12,8 @@ from importlib.util import find_spec
 from sd.common import play
 from sd.columns import indenter
 from sd.common import quote, warn
-from sd.bash import srun, quickrun
-from sd.multiball import spawn
+from sd.common import srun, quickrun
+from sd.common import spawn
 
 # Import PyQt and fallback on tkinter otherwise
 if find_spec("PyQt5"):
@@ -158,6 +158,29 @@ def msgbox(*args, wrap=640, wait=False, throwerr=False):
         return False
 
     return True
+
+
+
+
+'''
+import threading, queue
+if __name__ == "__main__":
+    def send_msg(msg):
+        proc = mp.Process(target=pqbox, args=(msg,))
+        proc.start()
+
+    def my_func():
+        send_msg('hello')
+
+    msg='hello'
+    send_msg(msg)
+    print("The program continues to run.")
+
+    time.sleep(2)
+    thread = threading.Thread(target=my_func)
+    thread.daemon = False
+    thread.start()
+'''
 
 
 

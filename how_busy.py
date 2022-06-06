@@ -10,9 +10,8 @@ import sys
 import time
 import itertools
 
-from sd.bash import quickrun
-from sd.common import avg, sorted_array, flatten, check_install, percent, list_get
 from sd.columns import auto_cols
+from sd.common import avg, sorted_array, flatten, check_install, percent, list_get, quickrun
 
 # Kib vs KB
 # iostat uses KiB: https://man7.org/linux/man-pages/man1/iostat.1.html

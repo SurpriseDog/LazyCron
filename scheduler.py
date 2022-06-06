@@ -11,15 +11,15 @@ from datetime import datetime as dada
 import battery_watcher
 from sd.msgbox import msgbox
 import sd.chronology as chronos
-from sd.multiball import spawn
 from sd.columns import indenter
 
-from sd.common import mkdir, joiner, safe_filename, error, read_csv, check_internet
+from sd.common import joiner, safe_filename, error, read_csv, check_internet, spawn, crop
 from sd.common import search_list, read_state, DotDict, Eprinter, warn, read_val, unique_filename
 
 
 EP = Eprinter()
 START_TIME = time.time()
+LOG_DIR = '/tmp/log_dir'
 print("Log started at:", int(START_TIME))
 
 
@@ -95,11 +95,6 @@ def run_proc(cmd, log):
     ofile.close()
     efile.close()
 
-    if code:
-        print()
-        warn(cmd, "\nReturned code", code)
-        print("Errors in:", efilename)
-        msgbox(cmd, "returned code", str(code), '\n', 'Errors in', efilename)
 
     # Remove file if nothing was written to them
     if not oflag:
@@ -107,15 +102,35 @@ def run_proc(cmd, log):
     if not eflag:
         os.remove(efilename)
 
+    if code:
+        print()
+        warn(cmd, "\nReturned code", code)
+        print("Errors in:", efilename)
 
-def read_schedule(schedule_apps, schedule_file):
-    "Read the schedule file"
+
+        # msgbox(cmd, "returned code", str(code), '\n', 'Errors in', efilename)
+        # Does not work. See: https://stackoverflow.com/q/72512226/11343425
+
+        return ' '.join((crop(cmd), "returned code", str(code)))
+    else:
+        return None
+
+
+
+def read_schedule(schedule_apps, schedule_file, alert=warn):
+    '''
+    Read the schedule file,
+    schedule_apps = List of Apps
+    schedule_file = txt file with tab delimted columns
+    alert =         send messages to userspace with warn or msgbox
+    '''
+
     new_sched = []
     headers = "time frequency date reqs path".split()
     for line in read_csv(schedule_file, headers=headers, delimiter=("\t", " " * 4), merge=True):
         print('\n\nData =', repr(line))
         if not all(line.values()):
-            warn("Empty columns must have a * in them")
+            alert("Empty columns must have a * in them")
             continue
         if len(line) >= 3:
             for proc in schedule_apps:
@@ -123,12 +138,20 @@ def read_schedule(schedule_apps, schedule_file):
                     new_sched.append(proc)
                     break
             else:
-                proc = App(line)
+                try:
+                    proc = App(line)
+                except:     # Bare exception to cover any processing errors
+                    alert("Could not process line:", line)
                 proc.print()
                 new_sched.append(proc)
         else:
-            print("Could not process:", line)
-    return new_sched
+            alert("Could not process:", '\n'+line)
+
+    # Return the old version if new schedule has errors
+    if not new_sched:
+        return schedule_apps
+    else:
+        return new_sched
 
 
 def aprint(*args, **kargs):
@@ -154,8 +177,7 @@ class App:
         self.args = args            # Preserve initial setup args
         self.path = args['path']    # Path to script
         self.thread = None          # Thread starting running process
-        self.log_dir = '/tmp/LazyCron_logs'
-        mkdir(self.log_dir)
+        self.que = None
         name = list(indenter(os.path.basename(self.path), wrap=64))
         if len(name) > 1:
             self.name = name[0].rstrip(',') + '...'
@@ -213,6 +235,11 @@ class App:
             self.reqs[match] = chronos.convert_user_time(val)
         else:
             self.reqs[match] = int(val)
+
+    def flush_que(self,):
+        if self.que:
+            msgbox(self.que.get())
+            self.que = None
 
     def process_args(self):
         args = self.args
@@ -356,6 +383,7 @@ class App:
 
     def run(self, elapsed, polling_rate, testing_mode, idle=0):
         "Run the process in seperate thread while appending info to log."
+
         if self.reqs:
             if self.reqs.closed and lid_open():
                 aprint("\tLid not closed", v=-1)
@@ -390,7 +418,7 @@ class App:
         self.next_elapsed = elapsed + self.freq
 
         filename = safe_filename(self.name + '.' + str(int(time.time())))
-        log_file = os.path.abspath(os.path.join(self.log_dir, filename))
+        log_file = os.path.abspath(os.path.join(LOG_DIR, filename))
         if self.path.lstrip().startswith('#'):
             testing_mode = True
         if testing_mode:
@@ -407,7 +435,7 @@ class App:
                 msgbox(msg)
                 self.thread = None
             else:
-                _que, self.thread = spawn(run_proc, self.path, log=log_file)
+                self.que, self.thread = spawn(run_proc, self.path, log=log_file)
         aprint(text, self.name, v=1)
         if len(self.history) >= 2:
             print(joiner(', ', *self.history))

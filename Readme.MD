@@ -19,12 +19,13 @@ You edit your schedule.txt file with programs to run:
 ```
 
 #Time              Frequency     Date              Requirements                   Script Path
-8:30pm-3am         *             sat-sun           idle 5m, plugged,online        backup_script_path_goes_here.sh
+8:30pm-3am         *             sat-sun           idle 5m, plugged,online        daily_backup_script_path_goes_here.sh
+*                  1h            *                 busy 10, idle 5                my_hourly_backup_script.py
 2pm-8pm            *             *                 online                         a_daily_script.py
 -5pm               *             m-f               random 8h                      A_surprise_everyday.py
 4-6pm              *             2nd Thursday      busy 5m                        mpg123 'Libera - Going Home.mp3'
 *                  *             March 14          *                              pi_day.py
-*                  *             1st-2nd           *                              zenity --info --text="Monthly list"
+*                  *             1st-2nd           *                              zenity --info --text="Monthly todo"
 *                  *             *                 start 1                        run_at_startup.sh
 
 ```
@@ -59,6 +60,12 @@ Examples: m-f, every 2nd Thursday
 
 ```
 
+Fun fact: You can combine "busy" and "idle" to run a script when the computer has been used recently, but is now idle:
+
+  * busy 10, idle 5
+
+AKA: The computer was "busy" sometime in the last 10 minutes, but has now been "idle" for at least 5. This is what I use to run a backup script of all my recent work whenever I take a short break.
+
 ----
 
 
@@ -75,10 +82,10 @@ The following utilities are required:
   * `xprintidle` to get the number of seconds computer has been idle.
   * `sysstat` package to get iostat which is used to measure disk activity before putting computer to sleep.
 
-	You can get these by typing:
+    You can get these by typing:
 
 ```
-	sudo apt install xprintidle sysstat
+    sudo apt install xprintidle sysstat
 ```
 
 # Usage:

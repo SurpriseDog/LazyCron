@@ -31,6 +31,8 @@ def msleep(seconds, accuracy=1/60):
     For example, if computer was in suspend mode.
     Average error is about 100ms per 1000 seconds = .01%
     '''
+    if seconds <= 0:
+        return 0
     start = time.time()
     time.sleep(seconds)
     elapsed = time.time() - start

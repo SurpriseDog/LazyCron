@@ -9,8 +9,7 @@ import os
 import sys
 import time
 
-from sd.bash import quickrun
-from sd.common import chunker, trailing_avg, read_val, read_file, list_get, Eprinter, sig
+from sd.common import chunker, trailing_avg, read_val, read_file, list_get, Eprinter, sig, quickrun
 from sd.chronology import local_time, fmt_time, fmt_clock, msleep
 
 eprint = Eprinter(verbose=1).eprint     # pylint: disable=C0103
