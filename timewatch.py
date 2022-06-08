@@ -39,8 +39,10 @@ class TimeWatch:
             return 0
         missing = msleep(seconds)
         self.update_idle()
+        '''
         if missing / seconds > 0.01 and self.verbose >= 2:
             print('Missing:', fmt_time(missing))
+        '''
 
         return missing
 

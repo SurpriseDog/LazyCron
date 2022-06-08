@@ -189,5 +189,3 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     MSG = ' '.join(sys.argv[1:])
     msgbox(MSG, wait=False)
-    # print("Message box done, waiting 3 seconds...")
-    # time.sleep(3)

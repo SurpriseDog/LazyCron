@@ -9,10 +9,9 @@ import os
 import sys
 import time
 
-from sd.common import chunker, trailing_avg, read_val, read_file, list_get, Eprinter, sig, quickrun
+from sd.common import chunker, trailing_avg, read_val, read_file, list_get, sig, quickrun
 from sd.chronology import local_time, fmt_time, fmt_clock, msleep
 
-eprint = Eprinter(verbose=1).eprint     # pylint: disable=C0103
 
 def get_filename(expr, path='/sys/class/power_supply/'):
     "Custom filename finder for BatteryWatcher"
@@ -21,7 +20,7 @@ def get_filename(expr, path='/sys/class/power_supply/'):
             for name in names:
                 if expr == name:
                     name = os.path.join(path, sub, name)
-                    eprint("Using filename:", name)
+                    print("Using filename:", name)
                     return name
     else:
         # print("Could not find file:", expr, 'in', path)

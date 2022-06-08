@@ -213,7 +213,7 @@ for months in range(22):
 '''
 
 
-def local_time(timestamp=None, user_format=None):
+def local_time(timestamp=None, user_format=None, lstrip=True):
     '''Given a unix timestamp, show the local time in a nice format:
     By default will not show date, unless more than a day into future.Format info here:
     https://docs.python.org/3.5/library/time.html#time.strftime '''
@@ -236,7 +236,10 @@ def local_time(timestamp=None, user_format=None):
                     # New day in same month
                     fmt = '%m-%d %I:%M %p'
 
-    return time.strftime(fmt, time.localtime(timestamp))
+    if lstrip:
+        return time.strftime(fmt, time.localtime(timestamp)).lstrip('0')
+    else:
+        return time.strftime(fmt, time.localtime(timestamp))
 
 '''
     print(local_time(time.time() + 1e2))

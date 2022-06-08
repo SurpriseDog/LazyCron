@@ -7,14 +7,16 @@
 import os
 import time
 
+import shared
 import how_busy
 import scheduler
 from timewatch import TimeWatch
 import sd.chronology as chronos
 
+
 from sd.msgbox import msgbox
 from sd.easy_args import easy_parse
-from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, error, tman
+from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, tman
 
 def parse_args():
     "Parse arguments"
@@ -89,7 +91,7 @@ def main(args):
         while missing > 2 and missing > polling_rate / 10:
             # Loop again to avoid edge case where the machine wakes up and is immediately put back to sleep
             if verbose >= 2:
-                print("Unaccounted for time during sleep:", chronos.fmt_time(missing))
+                shared.aprint("Unaccounted for time during sleep:", chronos.fmt_time(missing))
             missing = tw.sleep(polling_rate)
         polling_rate = args.polling_rate * 60
 
@@ -112,7 +114,6 @@ def main(args):
         for proc in schedule_apps:
             if args.stagger and (time.time() - last_run) / 60 < args.stagger:
                 break
-            proc.flush_que()
             if proc.in_window() and proc.next_elapsed <= tw.elapsed:
                 if args.skip and counter < 8:
                     testing = True
@@ -148,7 +149,7 @@ if __name__ == "__main__":
                       msg='''sudo apt install sysstat sar
                       --idle requires iostat () to determine if the computer can be put to sleep.''')
     # Min level to print messages:
-    scheduler.EP.verbose = 1 - UA.verbose
+    shared.VERBOSE = UA.verbose
     scheduler.LOG_DIR = UA.logs
     mkdir(UA.logs)
     gohome()

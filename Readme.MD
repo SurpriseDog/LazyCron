@@ -1,18 +1,18 @@
 Using Cron is nice if you have a server or never turn off your computer, but what if your laptop is asleep during the exact minute you have set to run your script? What if you have to reboot? What if your computer is actually running, but you would rather wait until it's idle with the lid closed before running a backup process or other intensive script?
 
-With LazyCron, "Your computer will get around to it eventually." LazyCron takes a more lackadaisical approach to life. Sure, it will get the job done, but there's no rush. You don't set a time to run, you set a range.
-
-In schedule.txt, "Time" is the window is when the script is allowed to run. You can have multiple time windows separated with commas. For example: `1-3am, 2pm-4pm, 11:30-11:34` - Play around with these numbers; the system is very flexible. When you run my script, it will show you the next time window available for each program so you can confirm it's doing what you expected.
-
-For example, let’s say you have a backup script that you only want to run when the computer is online, but not otherwise in use. In `schedule.txt` below I set the time range to between 8:30pm and 3am. The frequency is set to `*` which means it will only run once during that time period. The date is set to `sat-sun` meaning it will only run on Saturdays and Sundays. The requirements field says that the computer must be idle for at least 5 minutes, plugged in and online. Otherwise the script will wait until those conditions are met.
-
-You can also set various requirements, such as: the computer must be idle for a certain amount of time, busy, plugged in, online, the lid must be closed and more. See full options in schedule.txt
+With LazyCron, "Your computer will get around to it eventually." LazyCron takes a more lackadaisical approach to life. Sure, it will get the job done, but there's no rush. You don't set a time to run, you set a range. Better yet, whenever scripts run and encounter an error, LC will pop up a message to let you know something went wrong instead of just failing silently.
 
 ----
 
 # Schedule.txt
 
 You edit your schedule.txt file with programs to run:
+
+"Time" is the window is when the script is allowed to run. You can have multiple time windows separated with commas. For example: `1-3am, 2pm-4pm, 11:30-11:34` - Play around with these numbers; the system is very flexible. When you run my script, it will show you the next time window available for each program so you can confirm it's doing what you expected.
+
+For example, let’s say you have a backup script that you only want to run when the computer is online, but not otherwise in use. In `schedule.txt` below I set the time range to between 8:30pm and 3am. The frequency is set to `*` which means it will only run once during that time period. The date is set to `sat-sun` meaning it will only run on Saturdays and Sundays. The requirements field says that the computer must be idle for at least 5 minutes, plugged in and online. Otherwise the script will wait until those conditions are met.
+
+You can also set various requirements, such as: the computer must be idle for a certain amount of time, busy, plugged in, online, the lid must be closed and more. See full options in schedule.txt
 
 ### Example:
 

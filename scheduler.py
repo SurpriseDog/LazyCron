@@ -8,16 +8,19 @@ import datetime
 import subprocess
 from datetime import datetime as dada
 
+import shared
 import battery_watcher
-from sd.msgbox import msgbox
 import sd.chronology as chronos
+
+from shared import aprint
+from sd.msgbox import msgbox
 from sd.columns import indenter
 
-from sd.common import joiner, safe_filename, error, read_csv, check_internet, spawn, crop
-from sd.common import search_list, read_state, DotDict, Eprinter, warn, read_val, unique_filename
+from sd.common import safe_filename, error, read_csv, check_internet, spawn, crop, quickrun
+from sd.common import search_list, read_state, DotDict, warn, read_val, unique_filename
 
 
-EP = Eprinter()
+
 START_TIME = time.time()
 LOG_DIR = '/tmp/log_dir'
 print("Log started at:", int(START_TIME))
@@ -109,12 +112,9 @@ def run_proc(cmd, log):
 
 
         # msgbox(cmd, "returned code", str(code), '\n', 'Errors in', efilename)
-        # Does not work. See: https://stackoverflow.com/q/72512226/11343425
+        # Does not work because run_proc started in a thread
 
-        return ' '.join((crop(cmd), "returned code", str(code)))
-    else:
-        return None
-
+        quickrun('sd/msgbox.py', ' '.join((crop(cmd), "returned code", str(code))))
 
 
 def read_schedule(schedule_apps, schedule_file, alert=warn):
@@ -153,11 +153,6 @@ def read_schedule(schedule_apps, schedule_file, alert=warn):
     else:
         return new_sched
 
-
-def aprint(*args, **kargs):
-    EP.eprint('\n' + chronos.local_time(), *args, **kargs)
-
-
 class App:
     "Spawn processes during windows of time when certain conditions are met"
 
@@ -177,7 +172,7 @@ class App:
         self.args = args            # Preserve initial setup args
         self.path = args['path']    # Path to script
         self.thread = None          # Thread starting running process
-        self.que = None
+
         name = list(indenter(os.path.basename(self.path), wrap=64))
         if len(name) > 1:
             self.name = name[0].rstrip(',') + '...'
@@ -235,11 +230,6 @@ class App:
             self.reqs[match] = chronos.convert_user_time(val)
         else:
             self.reqs[match] = int(val)
-
-    def flush_que(self,):
-        if self.que:
-            msgbox(self.que.get())
-            self.que = None
 
     def process_args(self):
         args = self.args
@@ -381,21 +371,31 @@ class App:
             self.calc_window()
             return self.in_window()
 
+    def show_history(self,):
+        "Show the history of timestamps for process"
+        history = self.history
+        if len(history) >= 2:
+            if len(history) < 10:
+                print(', '.join(map(str, history)))
+            else:
+                print('...' + ', '.join(map(str, history[-10:])))
+
+
     def run(self, elapsed, polling_rate, testing_mode, idle=0):
         "Run the process in seperate thread while appending info to log."
 
         if self.reqs:
             if self.reqs.closed and lid_open():
-                aprint("\tLid not closed", v=-1)
+                aprint("Lid not closed", v=3)
                 return False
             if self.reqs.plugged and not is_plugged():
-                aprint("\tNot plugged in", v=-1)
+                aprint("Not plugged in", v=3)
                 return False
             if self.reqs.idle > idle:
-                aprint("\tIdle time not reached", v=-1)
+                aprint("Idle time not reached", v=3)
                 return False
             if self.reqs.busy and idle > self.reqs.busy:
-                aprint("\tIdle for too long:", idle, '>', self.reqs.busy, v=-1)
+                aprint("Idle for too long:", idle, '>', self.reqs.busy, v=3)
                 return False
             if self.reqs.random and random.random() > polling_rate / self.reqs.random:
                 # Random value not reached
@@ -406,7 +406,7 @@ class App:
             if self.reqs.elapsed and elapsed < self.reqs.elapsed:
                 return False
             if self.reqs.online and not check_internet():
-                aprint("\tNot Online", v=-1)
+                aprint("Not Online", v=3)
                 return False
 
         if self.running():
@@ -424,8 +424,8 @@ class App:
         if testing_mode:
             text = "Did not start process:"
         else:
-            # Compact way to record time start. Numbers indicate seconds x 10 since program start
-            self.history.append(int(time.time()-START_TIME) // 10)
+            # Compact way to record time start. Numbers indicate seconds since program start
+            self.history.append(int(time.time()-START_TIME))
             text = "Started process:"
             dirname = os.path.dirname(self.path)
             if not os.path.exists(dirname):
@@ -435,9 +435,9 @@ class App:
                 msgbox(msg)
                 self.thread = None
             else:
-                self.que, self.thread = spawn(run_proc, self.path, log=log_file)
+                _, self.thread = spawn(run_proc, self.path, log=log_file)
         aprint(text, self.name, v=1)
-        if len(self.history) >= 2:
-            print(joiner(', ', *self.history))
+        if shared.VERBOSE >= 2:
+            self.show_history()
 
         return True
