@@ -9,6 +9,7 @@ import time
 
 import shared
 import how_busy
+import computer
 import scheduler
 from timewatch import TimeWatch
 import sd.chronology as chronos
@@ -57,16 +58,15 @@ def is_busy(min_net=10e3, min_disk=1e6):
 
     net_usage = how_busy.get_network_usage(5, 4)
     if net_usage >= min_net:
-        print("Network Usage:", fmt(net_usage))
+        print("Busy: Network Usage:", fmt(net_usage))
         return True
 
     disk_usage = how_busy.all_disk_usage(5, 4)
     if disk_usage >= min_disk:
-        print("Disk usage:", fmt(disk_usage))
+        print("Busy: Disk usage:", fmt(disk_usage))
         return True
 
-    print("Network Usage:", fmt(net_usage), end=' ')
-    print("Disk usage:", fmt(disk_usage))
+    print("Not Busy - Network Usage:", fmt(net_usage), "Disk usage:", fmt(disk_usage))
     return False
 
 
@@ -84,6 +84,7 @@ def main(args):
     last_run = 0                            # Time when the last program was started
     schedule_apps = []                      # Apps found in schedule.txt
     cur_day = time.localtime().tm_yday      # Used for checking for new day
+    comp = computer.Computer()
 
     for counter in itercount():
         # Sleep at the end of every loop
@@ -105,7 +106,7 @@ def main(args):
         # Read the schedule file if it's been updated
         if os.path.getmtime(schedule_file) > last_schedule_read:
             if last_schedule_read:
-                print("\n\nSchedule file updated:")
+                shared.aprint("Schedule file updated:")
             last_schedule_read = time.time()
             schedule_apps = scheduler.read_schedule(schedule_apps, schedule_file, msgbox if counter else warn)
 
@@ -125,7 +126,7 @@ def main(args):
 
         # Put the computer to sleep after checking to make sure nothing is going on.
         if idle_sleep and tw.idle > idle_sleep:
-            if scheduler.is_plugged():
+            if comp.plugged_in():
                 # Plugged mode waits for idle system.
                 ready, results = tman.query(is_busy, max_age=polling_rate * 1.5)
                 if ready:

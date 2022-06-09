@@ -101,7 +101,7 @@ def pqbox(msg, wrap=640, title='Info', margin=20):
     label.setAlignment(qcore.Qt.AlignCenter)
     label.setText(msg)
     label.adjustSize()      # Do this or the .height() will be wrong
-    txtsize = label.fontMetrics().boundingRect(label.text())
+    # txtsize = label.fontMetrics().boundingRect(label.text())
     # lbl_height = math.ceil(txtsize.width() / wrap) * txtsize.height()
     # print(lbl_height, label.height())
 

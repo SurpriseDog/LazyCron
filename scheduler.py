@@ -9,7 +9,7 @@ import subprocess
 from datetime import datetime as dada
 
 import shared
-import battery_watcher
+import computer
 import sd.chronology as chronos
 
 from shared import aprint
@@ -17,40 +17,19 @@ from sd.msgbox import msgbox
 from sd.columns import indenter
 
 from sd.common import safe_filename, error, read_csv, check_internet, spawn, crop, quickrun
-from sd.common import search_list, read_state, DotDict, warn, read_val, unique_filename
-
+from sd.common import search_list, DotDict, warn, unique_filename
 
 
 START_TIME = time.time()
+COMP = computer.Computer()
 LOG_DIR = '/tmp/log_dir'
 print("Log started at:", int(START_TIME))
-
-
-# Get power plug status
-PLUGGED = battery_watcher.get_filename('online')    # Is the battery plugged in?
-if PLUGGED:
-    print("Using access file:", PLUGGED)
-    PLUGGED = open(PLUGGED)
-    print('Current Status:', ('Unplugged', 'Plugged in')[read_val(PLUGGED)])
 
 
 def is_val(var):
     if type(var) in (float, int):
         return True
     return len(var) > 1 or var.isdigit()
-
-
-def lid_open():
-    return read_state("/proc/acpi/button/lid/LID0/state").split()[1] == "open"
-
-
-def is_plugged():
-    "Is the computer plugged in?"
-    if PLUGGED:
-        return bool(read_val(PLUGGED))
-    else:
-        # Fake it if battery not detected (like on Desktop)
-        return True
 
 
 def get_day(day, cycle, today=None):
@@ -385,10 +364,10 @@ class App:
         "Run the process in seperate thread while appending info to log."
 
         if self.reqs:
-            if self.reqs.closed and lid_open():
+            if self.reqs.closed and COMP.lid_open():
                 aprint("Lid not closed", v=3)
                 return False
-            if self.reqs.plugged and not is_plugged():
+            if self.reqs.plugged and not COMP.plugged_in():
                 aprint("Not plugged in", v=3)
                 return False
             if self.reqs.idle > idle:
