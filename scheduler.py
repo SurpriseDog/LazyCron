@@ -26,12 +26,6 @@ LOG_DIR = '/tmp/log_dir'
 print("Log started at:", int(START_TIME))
 
 
-def is_val(var):
-    if type(var) in (float, int):
-        return True
-    return len(var) > 1 or var.isdigit()
-
-
 def get_day(day, cycle, today=None):
     "Given a day of the week/month/year, return the next occurence"
     if not today:

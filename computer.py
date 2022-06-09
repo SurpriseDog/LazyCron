@@ -32,7 +32,12 @@ class Computer:
             self._plugged = open(plugged)
 
         # Lid open
-        self._lid = "/proc/acpi/button/lid/LID0/state"
+        lid = "/proc/acpi/button/lid/LID0/state"
+        if not os.path.exists(lid):
+            warn("Cannot find path", lid)
+            self._lid = None
+        else:
+            self._lid = lid
 
         # Battery capacity
         for cname, mname in [['charge_now', 'charge_full'], ['energy_now', 'energy_full']]:
@@ -55,7 +60,7 @@ class Computer:
             return read_state(self._lid).split()[1] == "open"
         else:
             # Fake answer if can't determine state
-            return "open"
+            return True
 
     def get_capacity(self,):
         if self._capacity:
