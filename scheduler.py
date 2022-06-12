@@ -3,6 +3,7 @@
 import os
 import re
 import time
+import shutil
 import random
 import datetime
 import subprocess
@@ -100,8 +101,10 @@ def read_schedule(schedule_apps, schedule_file, alert=warn):
 
     new_sched = []
     headers = "time frequency date reqs path".split()
-    for line in read_csv(schedule_file, headers=headers, delimiter=("\t", " " * 4), merge=True):
-        print('\n\nData =', repr(line))
+    gen = read_csv(schedule_file, headers=headers, delimiter=("\t", " " * 4), merge=True)
+
+    for line in gen:
+        print("\n\n\n" + repr(line))
         if not all(line.values()):
             alert("Empty columns must have a * in them")
             continue
@@ -115,10 +118,15 @@ def read_schedule(schedule_apps, schedule_file, alert=warn):
                     proc = App(line)
                 except:     # Bare exception to cover any processing errors
                     alert("Could not process line:", line)
+                    continue
+
                 proc.print()
-                new_sched.append(proc)
+                if proc.verify():
+                    new_sched.append(proc)
         else:
             alert("Could not process:", '\n'+line)
+    else:
+        print("\n")
 
     # Return the old version if new schedule has errors
     if not new_sched:
@@ -164,6 +172,20 @@ class App:
                             )
         self.process_args()         # Process data lines
         self.calc_window()
+
+    def verify(self,):
+        "Check to make sure it can be run"
+        def alert(*args):
+            warn(*args)
+            msgbox(*args)
+            return False
+
+        path = self.path.split()[0]
+        if path != 'msgbox' and not path.startswith('#'):
+            if not shutil.which(path):
+                return alert("Path does not exist:", path)
+
+
 
 
     def process_time(self, section):
@@ -374,7 +396,6 @@ class App:
                 # Random value not reached
                 return False
             if self.reqs.start and len(self.history) >= self.reqs.start:
-                #
                 return False
             if self.reqs.elapsed and elapsed < self.reqs.elapsed:
                 return False

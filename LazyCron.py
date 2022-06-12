@@ -12,7 +12,6 @@ import how_busy
 import computer
 import scheduler
 from timewatch import TimeWatch
-import sd.chronology as chronos
 
 
 from sd.msgbox import msgbox
@@ -89,10 +88,8 @@ def main(args):
     for counter in itercount():
         # Sleep at the end of every loop
         missing = tw.sleep(polling_rate)
+        # Loop again to avoid edge case where the machine wakes up and is immediately put back to sleep
         while missing > 2 and missing > polling_rate / 10:
-            # Loop again to avoid edge case where the machine wakes up and is immediately put back to sleep
-            if verbose >= 2:
-                shared.aprint("Unaccounted for time during sleep:", chronos.fmt_time(missing))
             missing = tw.sleep(polling_rate)
         polling_rate = args.polling_rate * 60
 
@@ -106,7 +103,9 @@ def main(args):
         # Read the schedule file if it's been updated
         if os.path.getmtime(schedule_file) > last_schedule_read:
             if last_schedule_read:
-                shared.aprint("Schedule file updated:")
+                shared.aprint("Schedule file updated:", '\n' + '#' * 80)
+            else:
+                print("\n\nSchedule file:", '\n' + '#' * 80)
             last_schedule_read = time.time()
             schedule_apps = scheduler.read_schedule(schedule_apps, schedule_file, msgbox if counter else warn)
 

@@ -5,6 +5,7 @@ import subprocess
 from sd.common import rint, check_install, error, spawn
 from sd.chronology import local_time, fmt_time, msleep
 
+import shared
 
 # Choose correct program to get idle time and verify it is installed
 if sys.platform.startswith('win'):
@@ -39,10 +40,9 @@ class TimeWatch:
             return 0
         missing = msleep(seconds)
         self.update_idle()
-        '''
-        if missing / seconds > 0.01 and self.verbose >= 2:
-            print('Missing:', fmt_time(missing))
-        '''
+
+        if self.verbose >= 2 and missing / seconds > 0.01:
+            shared.aprint("Unaccounted for time during", fmt_time(missing))
 
         return missing
 
