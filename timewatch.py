@@ -42,7 +42,7 @@ class TimeWatch:
         self.update_idle()
 
         if self.verbose >= 2 and missing / seconds > 0.01:
-            shared.aprint("Unaccounted for time during", fmt_time(missing))
+            shared.aprint("Unaccounted for time during", fmt_time(seconds), "sleep:", fmt_time(missing))
 
         return missing
 
