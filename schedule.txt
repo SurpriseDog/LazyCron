@@ -10,7 +10,7 @@
 
 #Time              Frequency     Date              Requirements         Script Path
 2pm-8pm            1h            sat-sun           online, idle 5       msgbox "You could run an script on this line. Edit schedule.txt to delete this line and add your own programs"
-*                  *             *                 start 0              msgbox "LazyCron is working! Edit schedule.txt to delete this line and add your own programs"
+*                  7d            *                 start 0              msgbox "LazyCron is working! Edit schedule.txt to delete this line and add your own programs"
 
 
 

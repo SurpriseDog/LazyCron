@@ -153,6 +153,7 @@ class App:
         self.args = args            # Preserve initial setup args
         self.path = args['path']    # Path to script
         self.thread = None          # Thread starting running process
+        self.verbose = shared.VERBOSE
 
         name = list(indenter(os.path.basename(self.path), wrap=64))
         if len(name) > 1:
@@ -184,6 +185,8 @@ class App:
         if path != 'msgbox' and not path.startswith('#'):
             if not shutil.which(path):
                 return alert("Path does not exist:", path)
+
+        return True
 
 
 
@@ -244,7 +247,6 @@ class App:
                     self.process_date(val)
                 if key == 'frequency':
                     self.freq = chronos.convert_user_time(val)
-                    self.next_elapsed = self.freq
 
 
     def __str__(self):
@@ -376,21 +378,27 @@ class App:
                 print('...' + ', '.join(map(str, history[-10:])))
 
 
+    def alert(self, *args, v=2):
+        "Show time, process name and message"
+        if self.verbose >= v:
+            aprint(self.name, *args)
+
+
     def run(self, elapsed, polling_rate, testing_mode, idle=0):
         "Run the process in seperate thread while appending info to log."
 
         if self.reqs:
             if self.reqs.closed and COMP.lid_open():
-                aprint("Lid not closed", v=3)
+                self.alert("Lid not closed")
                 return False
             if self.reqs.plugged and not COMP.plugged_in():
-                aprint("Not plugged in", v=3)
+                self.alert("Not plugged in")
                 return False
             if self.reqs.idle > idle:
-                aprint("Idle time not reached", v=3)
+                self.alert("Idle time not reached")
                 return False
             if self.reqs.busy and idle > self.reqs.busy:
-                aprint("Idle for too long:", idle, '>', self.reqs.busy, v=3)
+                self.alert("Idle for too long:", idle, '>', self.reqs.busy)
                 return False
             if self.reqs.random and random.random() > polling_rate / self.reqs.random:
                 # Random value not reached
@@ -398,9 +406,10 @@ class App:
             if self.reqs.start and len(self.history) >= self.reqs.start:
                 return False
             if self.reqs.elapsed and elapsed < self.reqs.elapsed:
+                self.alert("Elapsed not reached", elapsed)
                 return False
             if self.reqs.online and not check_internet():
-                aprint("Not Online", v=3)
+                self.alert("Not Online")
                 return False
 
         if self.running():
@@ -431,7 +440,7 @@ class App:
             else:
                 _, self.thread = spawn(run_proc, self.path, log=log_file)
         aprint(text, self.name, v=1)
-        if shared.VERBOSE >= 2:
+        if self.verbose >= 2:
             self.show_history()
 
         return True

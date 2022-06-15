@@ -11,7 +11,9 @@ import shared
 import how_busy
 import computer
 import scheduler
+from chronology import fmt_time
 from timewatch import TimeWatch
+from scheduler import aprint
 
 
 from sd.msgbox import msgbox
@@ -65,7 +67,7 @@ def is_busy(min_net=10e3, min_disk=1e6):
         print("Busy: Disk usage:", fmt(disk_usage))
         return True
 
-    print("Not Busy - Network Usage:", fmt(net_usage), "Disk usage:", fmt(disk_usage))
+    aprint("Not Busy - Network Usage:", fmt(net_usage), "Disk usage:", fmt(disk_usage))
     return False
 
 
@@ -103,7 +105,7 @@ def main(args):
         # Read the schedule file if it's been updated
         if os.path.getmtime(schedule_file) > last_schedule_read:
             if last_schedule_read:
-                shared.aprint("Schedule file updated:", '\n' + '#' * 80)
+                aprint("Schedule file updated:", '\n' + '#' * 80)
             else:
                 print("\n\nSchedule file:", '\n' + '#' * 80)
             last_schedule_read = time.time()
@@ -114,13 +116,16 @@ def main(args):
         for proc in schedule_apps:
             if args.stagger and (time.time() - last_run) / 60 < args.stagger:
                 break
-            if proc.in_window() and proc.next_elapsed <= tw.elapsed:
-                if args.skip and counter < 8:
-                    testing = True
-                else:
-                    testing = testing_mode
-                if proc.run(elapsed=tw.elapsed, idle=tw.idle, polling_rate=polling_rate, testing_mode=testing):
-                    last_run = time.time()
+            if proc.in_window():
+                if proc.next_elapsed <= tw.elapsed:
+                    if args.skip and counter < 8:
+                        testing = True
+                    else:
+                        testing = testing_mode
+                    if proc.run(elapsed=tw.elapsed, idle=tw.idle, polling_rate=polling_rate, testing_mode=testing):
+                        last_run = time.time()
+                elif verbose >= 3:
+                    aprint(proc.name, "will run in", fmt_time(tw.elapsed - proc.next_elapsed))
 
 
         # Put the computer to sleep after checking to make sure nothing is going on.

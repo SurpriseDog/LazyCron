@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import sys
+import time
 import subprocess
 from sd.common import rint, check_install, error, spawn
 from sd.chronology import local_time, fmt_time, msleep
@@ -25,24 +26,25 @@ class TimeWatch:
         self._raw = 0                           # Raw idle number read from system
         self.idle = 0                           # Seconds of idle from last sleep
         self.last = 0                           # Last idle returned
-        self.elapsed = 0                        # Total time Computer has spent not idle today
+        self.elapsed = 0                        # Total time Computer has spent not idle
         self.verbose = verbose
 
     def reset(self):
         self.idle = 0
         self._raw = 0
         self.last = 0
-        self.elapsed = 0
 
     def sleep(self, seconds):
         "Sleep for seconds and track missing time"
         if seconds <= 0:
             return 0
+        start = time.time()
         missing = msleep(seconds)
+        end = time.time()
         self.update_idle()
 
         if self.verbose >= 2 and missing / seconds > 0.01:
-            shared.aprint("Unaccounted for time during", fmt_time(seconds), "sleep:", fmt_time(missing))
+            shared.aprint("Unaccounted for time during", fmt_time(seconds), "sleep:", fmt_time(missing), end, start)
 
         return missing
 
