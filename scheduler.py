@@ -162,15 +162,16 @@ class App:
             self.name = name[0].rstrip(',')
 
         # Requirements to run process
+        # These are default values if only argument given by user
         self.reqs = DotDict(plugged=False,
-                            idle=0,
-                            busy=0,
+                            idle=10,
+                            busy=10,
                             closed=False,
-                            random=0,
-                            start=0,
-                            online=0,
-                            elapsed=0,
-                            skip=0,
+                            random=60,
+                            start=1,
+                            online=1,
+                            elapsed=1,
+                            skip=1,
                             )
         self.process_args()         # Process data lines
         self.calc_window()
@@ -214,40 +215,51 @@ class App:
             end = days[1]
         self.date_window.append((start, end, cycles))
 
-    def process_reqs(self, arg):
+    def process_reqs(self, args):
         "Process requirements field"
-        split = arg.lower().strip().split()
-        arg = split[0]
-        val = (' '.join(split[1:])).strip()
-        if not val:
-            val = '10'
-        match = search_list(arg, self.reqs.keys(), getfirst=True)
-        if not match:
-            error("Can't find requirement:", arg)
+        print("processing requirements field:", args)
+        found = []
 
-        if match in ('idle', 'busy', 'random', 'elapsed'):
-            self.reqs[match] = chronos.convert_user_time(val)
-        else:
-            self.reqs[match] = int(val)
+        for arg in args:
+            split = arg.lower().strip().split()
+            arg = split[0]
+            val = (' '.join(split[1:])).strip()
+            match = search_list(arg, self.reqs.keys(), getfirst=True)
+            found.append(match)
+            if not match:
+                error("Can't find requirement:", arg)
+            if not val:
+                val = self.reqs[match]
+
+            if match in ('idle', 'busy', 'random', 'elapsed'):
+                self.reqs[match] = chronos.convert_user_time(val)
+            else:
+                self.reqs[match] = int(val)
+
+        for key in list(self.reqs.keys()):
+            if key not in found:
+                del self.reqs[key]
+
+        # todo self contain this to process reqs all at once, set default values based on self.reqs and delete rest
 
     def process_args(self):
         args = self.args
         for key, values in args.items():
             if set(values) == {'*'}:
+                if key == 'reqs':
+                    self.reqs = None
                 continue
             values = values.split(',')
-            for val in values:
-                if key == 'reqs':
-                    if not val:
-                        self.reqs = None
-                    else:
-                        self.process_reqs(val)
-                if key == 'time':
-                    self.process_time(val)
-                if key == 'date':
-                    self.process_date(val)
-                if key == 'frequency':
-                    self.freq = chronos.convert_user_time(val)
+            if key == 'reqs':
+                self.process_reqs(values)
+            else:
+                for val in values:
+                    if key == 'time':
+                        self.process_time(val)
+                    if key == 'date':
+                        self.process_date(val)
+                    if key == 'frequency':
+                        self.freq = chronos.convert_user_time(val)
 
 
     def __str__(self):
@@ -391,30 +403,30 @@ class App:
         "Run the process in seperate thread while appending info to log."
 
         if self.reqs:
-            if self.reqs.closed and COMP.lid_open():
+            if 'closed' in self.reqs and COMP.lid_open():
                 self.alert("Lid not closed")
                 return False
-            if self.reqs.plugged and not COMP.plugged_in():
+            if 'plugged' in self.reqs and not COMP.plugged_in():
                 self.alert("Not plugged in")
                 return False
-            if self.reqs.idle > idle:
+            if 'idle' in self.reqs and idle < self.reqs.idle:
                 self.alert("Idle time not reached")
                 return False
-            if self.reqs.busy and idle > self.reqs.busy:
+            if 'busy' in self.reqs and idle > self.reqs.busy:
                 self.alert("Idle for too long:", idle, '>', self.reqs.busy)
                 return False
-            if self.reqs.random and random.random() > polling_rate / self.reqs.random:
+            if 'random' in self.reqs and random.random() > polling_rate / self.reqs.random:
                 # Random value not reached
                 return False
-            if self.reqs.start and len(self.history) >= self.reqs.start:
+            if 'start' in self.reqs and len(self.history) >= self.reqs.start:
                 return False
-            if self.reqs.skip and len(self.history) < self.reqs.skip:
+            if 'skip' in self.reqs and len(self.history) < self.reqs.skip:
                 self.alert("Skipping process", len(self.history) + 1, 'of', self.reqs.skip)
                 testing_mode = True
-            if self.reqs.elapsed and elapsed < self.reqs.elapsed:
+            if 'elapsed' in self.reqs and elapsed < self.reqs.elapsed:
                 self.alert("Elapsed not reached", elapsed)
                 return False
-            if self.reqs.online and not check_internet():
+            if 'online' in self.reqs and not check_internet():
                 self.alert("Not Online")
                 return False
 
