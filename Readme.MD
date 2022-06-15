@@ -54,6 +54,7 @@ Examples: m-f, every 2nd Thursday
   *    plugged = Power cord must be attached
   *    closed  = Lid must be closed
   *    start   = Only run this many times at startup. 0 = infinite
+  *    skip    = Skip running this process at startup
   *    elapsed = Computer must be used for a certain amount of time in day before running.
   *    online  = Do we have internet access?
   *    random  = Script will run randomly. Example: random 8h will (on average) run every 8 hours. Some days it will run 3+ times, other days not at all.

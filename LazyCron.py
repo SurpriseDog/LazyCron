@@ -87,6 +87,7 @@ def main(args):
     cur_day = time.localtime().tm_yday      # Used for checking for new day
     comp = computer.Computer()
 
+
     for counter in itercount():
         # Sleep at the end of every loop
         missing = tw.sleep(polling_rate)
@@ -100,6 +101,11 @@ def main(args):
             tw.reset()
             cur_day = time.localtime().tm_yday
             print(time.strftime('\n\nToday is %A, %-m-%d'), '\n' + '#' * 80)
+            if verbose >= 2:
+                print("Elapsed", tw.elapsed)
+                for proc in schedule_apps:
+                    proc.print()
+                    print('\n')
 
 
         # Read the schedule file if it's been updated
@@ -125,7 +131,7 @@ def main(args):
                     if proc.run(elapsed=tw.elapsed, idle=tw.idle, polling_rate=polling_rate, testing_mode=testing):
                         last_run = time.time()
                 elif verbose >= 3:
-                    aprint(proc.name, "will run in", fmt_time(tw.elapsed - proc.next_elapsed))
+                    aprint(proc.name, "will run in", fmt_time(proc.next_elapsed - tw.elapsed))
 
 
         # Put the computer to sleep after checking to make sure nothing is going on.

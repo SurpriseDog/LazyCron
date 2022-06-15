@@ -170,6 +170,7 @@ class App:
                             start=0,
                             online=0,
                             elapsed=0,
+                            skip=0,
                             )
         self.process_args()         # Process data lines
         self.calc_window()
@@ -270,6 +271,8 @@ class App:
         print('Path: ', self.path)
         print('Reqs: ', self.reqs)
         print('in_window:', self.in_window())
+        if self.next_elapsed:
+            print('Next elapsed:', chronos.fmt_time(self.next_elapsed))
 
 
     def running(self):
@@ -405,6 +408,9 @@ class App:
                 return False
             if self.reqs.start and len(self.history) >= self.reqs.start:
                 return False
+            if self.reqs.skip and len(self.history) < self.reqs.skip:
+                self.alert("Skipping process", len(self.history) + 1, 'of', self.reqs.skip)
+                testing_mode = True
             if self.reqs.elapsed and elapsed < self.reqs.elapsed:
                 self.alert("Elapsed not reached", elapsed)
                 return False
@@ -420,15 +426,14 @@ class App:
         self.last_run = int(time.time())
         self.next_elapsed = elapsed + self.freq
 
-        filename = safe_filename(self.name + '.' + str(int(time.time())))
-        log_file = os.path.abspath(os.path.join(LOG_DIR, filename))
+
+        # Compact way to record time start. Numbers indicate seconds since program start
+        self.history.append(int(time.time()-START_TIME))
         if self.path.lstrip().startswith('#'):
             testing_mode = True
         if testing_mode:
             text = "Did not start process:"
         else:
-            # Compact way to record time start. Numbers indicate seconds since program start
-            self.history.append(int(time.time()-START_TIME))
             text = "Started process:"
             dirname = os.path.dirname(self.path)
             if not os.path.exists(dirname):
@@ -438,6 +443,8 @@ class App:
                 msgbox(msg)
                 self.thread = None
             else:
+                filename = safe_filename(self.name + '.' + str(int(time.time())))
+                log_file = os.path.abspath(os.path.join(LOG_DIR, filename))
                 _, self.thread = spawn(run_proc, self.path, log=log_file)
         aprint(text, self.name, v=1)
         if self.verbose >= 2:
