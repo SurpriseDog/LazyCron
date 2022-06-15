@@ -3,7 +3,7 @@
 import sys
 import time
 import subprocess
-from sd.common import rint, check_install, error, spawn
+from sd.common import rint, check_install, warn, spawn
 from sd.chronology import local_time, fmt_time, msleep
 
 import shared
@@ -11,12 +11,23 @@ import shared
 # Choose correct program to get idle time and verify it is installed
 if sys.platform.startswith('win'):
     PLATFORM = 'windows'
-    error("Windows implementation not implemented")
+    warn("Windows implementation not implemented")
 elif sys.platform.startswith('linux'):
     PLATFORM = 'linux'
     check_install('xprintidle', msg="sudo apt install xprintidle")
 else:
-    error("Unknown computer system:", sys.platform)
+    warn("Unknown computer system:", sys.platform)
+
+
+def get_idle():
+    "Run a command to get the system idle time"
+    if PLATFORM == 'linux':
+        val = subprocess.run('xprintidle', check=True, stdout=subprocess.PIPE)
+        return float(val.stdout.strip()) / 1000
+    else:
+        warn("Can't fetch idle on Unknown platform", PLATFORM)
+        return 0
+
 
 
 class TimeWatch:
@@ -52,14 +63,7 @@ class TimeWatch:
     def update_idle(self,):
         "Query system to get idle time"
         self.last = self._raw
-
-        if PLATFORM == 'linux':
-            val = subprocess.run('xprintidle', check=True, stdout=subprocess.PIPE)
-            val = float(val.stdout.strip()) / 1000
-            self._raw = val
-        else:
-            error("Unknown platform", PLATFORM)
-
+        self._raw = get_idle()
 
         if self._raw > self.last:
             self.idle = self._raw - self.last

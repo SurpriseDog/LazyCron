@@ -49,15 +49,15 @@ Examples: m-f, every 2nd Thursday
 
 ```
 
-  *    idle    = Time the computer has been idle for
-  *    busy    = Computer must have been in use within time specified
-  *    plugged = Power cord must be attached
-  *    closed  = Lid must be closed
-  *    start   = Only run this many times at startup. 0 = infinite
-  *    skip    = Skip running this process at startup
-  *    elapsed = Computer must be used for a certain amount of time in day before running.
-  *    online  = Do we have internet access?
-  *    random  = Script will run randomly. Example: random 8h will (on average) run every 8 hours. Some days it will run 3+ times, other days not at all.
+  *    idle         = Time the computer has been idle for
+  *    busy         = Computer must have been in use within time specified
+  *    (un)plugged  = Power cord must be attached
+  *    closed/open  = Lid must be closed
+  *    start        = Only run this many times at startup. 0 = infinite
+  *    skip         = Skip running this process x times at startup
+  *    elapsed      = Computer must be used for a certain amount of time in day before running.
+  *    online       = Do we have internet access?
+  *    random       = Script will run randomly. Example: random 8h will (on average) run every 8 hours. Some days it might run 5+ times, other days not at all. That's [how randomness works.](https://math.stackexchange.com/q/209987/693067)
 
 ```
 

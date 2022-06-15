@@ -102,7 +102,7 @@ def main(args):
             cur_day = time.localtime().tm_yday
             print(time.strftime('\n\nToday is %A, %-m-%d'), '\n' + '#' * 80)
             if verbose >= 2:
-                print("Elapsed", tw.elapsed)
+                print("Elapsed", fmt_time(tw.elapsed))
                 for proc in schedule_apps:
                     proc.print()
                     print('\n')

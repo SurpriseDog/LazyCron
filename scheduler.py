@@ -15,8 +15,9 @@ import sd.chronology as chronos
 
 from shared import aprint
 from sd.msgbox import msgbox
-from sd.columns import indenter
+from timewatch import get_idle
 
+from sd.columns import indenter
 from sd.common import safe_filename, error, read_csv, check_internet, spawn, crop, quickrun
 from sd.common import search_list, DotDict, warn, unique_filename
 
@@ -111,6 +112,7 @@ def read_schedule(schedule_apps, schedule_file, alert=warn):
         if len(line) >= 3:
             for proc in schedule_apps:
                 if line == proc.args:
+                    print("Using existing App definition:", proc.name)
                     new_sched.append(proc)
                     break
             else:
@@ -161,20 +163,62 @@ class App:
         else:
             self.name = name[0].rstrip(',')
 
-        # Requirements to run process
-        # These are default values if only argument given by user
-        self.reqs = DotDict(plugged=False,
-                            idle=10,
-                            busy=10,
-                            closed=False,
-                            random=60,
+        # Requirements to run process:
+        # These are default values if no argument given by user
+        self.reqs = DotDict(plugged=True,
+                            unplugged=True,
+                            idle=10 * 60,
+                            busy=10 * 60,
+                            closed=True,
+                            open=True,
+                            random=86400,
                             start=1,
-                            online=1,
-                            elapsed=1,
+                            online=True,
+                            elapsed=10 * 60,
                             skip=1,
                             )
         self.process_args()         # Process data lines
         self.calc_window()
+
+    def process_reqs(self, args):
+        "Process requirements field"
+        # print("processing requirements field:", args)
+        found = []
+
+        inversions = dict(unplugged='plugged', open='closed')
+
+        for arg in args:
+            split = arg.lower().strip().split()
+            arg = split[0]
+            val = (' '.join(split[1:])).strip()
+            match = search_list(arg, self.reqs.keys(), getfirst=True)
+            if not match:
+                error("Can't find requirement:", arg)
+
+            # Get default value if not supplied
+            if not val:
+                val = self.reqs[match]
+
+
+            if match in ('idle', 'busy', 'random', 'elapsed'):
+                val = chronos.convert_user_time(val, default='minutes')
+            else:
+                val = int(val)
+
+            # deal with plugged/unplugged closed/open...
+            if match in inversions:
+                match = inversions[match]
+                val = not val
+
+            if match in ('plugged', 'closed', 'online'):
+                val = bool(val)
+
+            found.append(match)
+            self.reqs[match] = val
+
+        for key in list(self.reqs.keys()):
+            if key not in found:
+                del self.reqs[key]
 
     def verify(self,):
         "Check to make sure it can be run"
@@ -189,8 +233,6 @@ class App:
                 return alert("Path does not exist:", path)
 
         return True
-
-
 
 
     def process_time(self, section):
@@ -215,33 +257,6 @@ class App:
             end = days[1]
         self.date_window.append((start, end, cycles))
 
-    def process_reqs(self, args):
-        "Process requirements field"
-        print("processing requirements field:", args)
-        found = []
-
-        for arg in args:
-            split = arg.lower().strip().split()
-            arg = split[0]
-            val = (' '.join(split[1:])).strip()
-            match = search_list(arg, self.reqs.keys(), getfirst=True)
-            found.append(match)
-            if not match:
-                error("Can't find requirement:", arg)
-            if not val:
-                val = self.reqs[match]
-
-            if match in ('idle', 'busy', 'random', 'elapsed'):
-                self.reqs[match] = chronos.convert_user_time(val)
-            else:
-                self.reqs[match] = int(val)
-
-        for key in list(self.reqs.keys()):
-            if key not in found:
-                del self.reqs[key]
-
-        # todo self contain this to process reqs all at once, set default values based on self.reqs and delete rest
-
     def process_args(self):
         args = self.args
         for key, values in args.items():
@@ -259,7 +274,7 @@ class App:
                     if key == 'date':
                         self.process_date(val)
                     if key == 'frequency':
-                        self.freq = chronos.convert_user_time(val)
+                        self.freq = chronos.convert_user_time(val, default='minutes')
 
 
     def __str__(self):
@@ -403,15 +418,16 @@ class App:
         "Run the process in seperate thread while appending info to log."
 
         if self.reqs:
-            if 'closed' in self.reqs and COMP.lid_open():
-                self.alert("Lid not closed")
+            if 'closed' in self.reqs and self.reqs.closed == COMP.lid_open():
+                self.alert("Wrong lid state")
                 return False
-            if 'plugged' in self.reqs and not COMP.plugged_in():
-                self.alert("Not plugged in")
+            if 'plugged' in self.reqs and self.reqs.plugged != COMP.plugged_in():
+                self.alert("Wrong plug state")
                 return False
-            if 'idle' in self.reqs and idle < self.reqs.idle:
-                self.alert("Idle time not reached")
-                return False
+            if 'idle' in self.reqs:
+                if idle < self.reqs.idle or get_idle() < self.reqs.idle:
+                    self.alert("Idle time not reached")
+                    return False
             if 'busy' in self.reqs and idle > self.reqs.busy:
                 self.alert("Idle for too long:", idle, '>', self.reqs.busy)
                 return False
