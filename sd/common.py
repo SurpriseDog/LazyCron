@@ -5,7 +5,6 @@
 import os
 import re
 import sys
-import csv
 import math
 import time
 import queue
@@ -297,81 +296,6 @@ def check_internet(timeout=8, tries=1):
         except OSError:
             pass
     return False
-
-
-def read_csv(filename, ignore_comments=True, cleanup=True, headers=None, merge=False, delimiter=',', **kargs):
-    '''Read a csv while stripping comments and turning numbers into numbers
-    ignore_comments = ignore a leading #
-    cleanup = remove quotes and fix numbers
-    headers = instead of a list return a dict with headers as keys for columns
-    delimiter = seperator between columns.
-    If you provide a list it will try each one in turn, but the first option must be a single character
-    merge = merge repeated delimiter'''
-
-    def clean(row):
-        "Strip all the junk off of csv file"
-        if not cleanup:
-            return row
-        out = []
-        for item in row:
-            # Cleanup any quote wraps
-            item = item.strip()
-            if item.startswith("'") and item.endswith("'"):
-                item.strip("'")
-            if item.startswith('"') and item.endswith('"'):
-                item.strip('"')
-
-            # Check if its a number
-            if item.lstrip('-').replace('.', '', 1).isdigit():
-                if '.' in item:
-                    item = float(item)
-                else:
-                    item = int(item)
-            out.append(item)
-        return out
-
-    def get_headers(row):
-        if not headers:
-            return row
-
-        out = {key: None for key in headers}
-        length = len(headers)
-        count = 0
-        for item in row:
-            if count >= length:
-                if item:
-                    print("Warning! Unused items while reading line:", row[count:])
-                break
-            out[headers[count]] = item
-            count += 1
-        return out
-
-    with open(filename) as f:
-        for line in f.readlines():
-            if not line:
-                yield get_headers(clean([]))
-
-            if delimiter[0] in line:
-                row = next(csv.reader([line], delimiter=delimiter[0], **kargs))
-            else:
-                for d in delimiter[1:]:
-                    if d in line:
-                        # This is fixed in python 3.7 anyway: https://github.com/PyCQA/pylint/issues/3424
-                        row = next(csv.reader([line.replace(d, delimiter[0])], delimiter=delimiter[0],
-                                   **kargs))
-                        print("Using backup delimiter to read line:", repr(d))
-                        break
-                else:
-                    continue
-
-            if row:
-                if merge:
-                    # Eliminate empty columns
-                    row = [item for item in row if item]
-                if not ignore_comments:
-                    yield get_headers(clean(row))
-                elif not row[0].startswith('#'):
-                    yield get_headers(clean(row))
 
 
 def safe_filename(filename, src="/ ", dest="-_", no_http=True, length=200,

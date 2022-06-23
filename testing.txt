@@ -1,0 +1,18 @@
+# A schedule for testing LazyCron. All times are given in seconds. Example commands are below.
+
+#Uses a mix of tabs and spaces:
+#Time            Frequency        Date            Requirements                 script path
+*                0               *                random 60s                    # random
+*				 1h				 *				  elapsed 6s				    # elapsed		#tab test
+*                *               *                idle 5s                       # idle
+*                *               *                skip 2                        echo skip
+*                *               *                online                        # online only
+*                10s        	 *                *                             # Every 10
+
+
+
+# 2 seconds:
+# reset;./LazyCron.py testing.txt --polling 0.0333333 -v 2
+
+# 10 seconds:
+# reset;./LazyCron.py testing.txt --polling 0.1666666666666 -v 2

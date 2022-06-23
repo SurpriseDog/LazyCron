@@ -6,6 +6,7 @@ import time
 import shutil
 import random
 import datetime
+import traceback
 import subprocess
 from datetime import datetime as dada
 
@@ -18,14 +19,15 @@ from sd.msgbox import msgbox
 from timewatch import get_idle
 
 from sd.columns import indenter
-from sd.common import safe_filename, error, read_csv, check_internet, spawn, crop, quickrun
+from sd.easy_csv import read_csv
+from sd.common import safe_filename, error, check_internet, spawn, crop, quickrun
 from sd.common import search_list, DotDict, warn, unique_filename
 
 
 START_TIME = time.time()
 COMP = computer.Computer()
 LOG_DIR = '/tmp/log_dir'
-print("Log started at:", int(START_TIME))
+print("Log started at:", chronos.local_time(START_TIME), '=', int(START_TIME))
 
 
 def get_day(day, cycle, today=None):
@@ -105,10 +107,15 @@ def read_schedule(schedule_apps, schedule_file, alert=warn):
     gen = read_csv(schedule_file, headers=headers, delimiter=("\t", " " * 4), merge=True)
 
     for line in gen:
+        if '__UNUSED' in line:
+            line['path'] += '    '.join(line['__UNUSED'])
+            del line['__UNUSED']
+
         print("\n\n\n" + repr(line))
-        if not all(line.values()):
-            alert("Empty columns must have a * in them")
-            continue
+        for val in line:
+            if val.strip() == "":
+                alert("Empty columns must have a value in them")
+                continue
         if len(line) >= 3:
             for proc in schedule_apps:
                 if line == proc.args:
@@ -118,8 +125,10 @@ def read_schedule(schedule_apps, schedule_file, alert=warn):
             else:
                 try:
                     proc = App(line)
-                except:     # Bare exception to cover any processing errors
+                except Exception as e:      # Bare exception to cover any processing errors
                     alert("Could not process line:", line)
+                    traceback.print_exc()
+                    print(e, '\n\n\n')
                     continue
 
                 proc.print()
@@ -148,8 +157,11 @@ class App:
         self.freq = 0               # Frequency
         self.history = []           # When the app last ran
 
-        self.last_elapsed = 0       # Last elapsed time at run
+
         self.last_run = 0           # Last time the script was run
+        self.next_run = 0           # Next time the script can run
+
+        self.last_elapsed = 0       # Last elapsed time at run
         self.next_elapsed = 0       # Next run time
 
         self.args = args            # Preserve initial setup args
@@ -179,6 +191,7 @@ class App:
                             )
         self.process_args()         # Process data lines
         self.calc_window()
+
 
     def process_reqs(self, args):
         "Process requirements field"
@@ -220,6 +233,7 @@ class App:
             if key not in found:
                 del self.reqs[key]
 
+
     def verify(self,):
         "Check to make sure it can be run"
         def alert(*args):
@@ -260,9 +274,10 @@ class App:
     def process_args(self):
         args = self.args
         for key, values in args.items():
+            print(repr(key), repr(values))
             if set(values) == {'*'}:
                 if key == 'reqs':
-                    self.reqs = None
+                    self.reqs = DotDict()
                 continue
             values = values.split(',')
             if key == 'reqs':
@@ -402,21 +417,36 @@ class App:
         "Show the history of timestamps for process"
         history = self.history
         if len(history) >= 2:
-            if len(history) < 10:
+            if len(history) < 11:
                 print(', '.join(map(str, history)))
             else:
                 print('...' + ', '.join(map(str, history[-10:])))
 
 
-    def alert(self, *args, v=2):
+    def alert(self, *args, v=3):
         "Show time, process name and message"
         if self.verbose >= v:
-            aprint(self.name, *args)
+            aprint(self.name, '::', *args)
 
 
-    def run(self, elapsed, polling_rate, testing_mode, idle=0):
-        "Run the process in seperate thread while appending info to log."
+    def run(self, tw, polling_rate, testing_mode):
+        "Run the process in seperate thread while writing output to log."
+        now = time.time()
+        if not self.in_window():
+            return False
 
+        if self.next_run and now < self.next_run:
+            return False
+
+        '''
+        # move into reqs and add usage to freq, do alt mode where it's just every hour
+        if tw.elapsed < self.next_elapsed:
+            self.alert('will run in', chronos.fmt_time(self.next_elapsed - tw.elapsed))
+            return False
+        '''
+        # print(self.name, self.reqs)
+        # Check App requirements.
+        # Not a match statement. No increase in speed and breaks compatability with python versions < 3.10
         if self.reqs:
             if 'closed' in self.reqs and self.reqs.closed == COMP.lid_open():
                 self.alert("Wrong lid state")
@@ -425,22 +455,23 @@ class App:
                 self.alert("Wrong plug state")
                 return False
             if 'idle' in self.reqs:
-                if idle < self.reqs.idle or get_idle() < self.reqs.idle:
+                if tw.idle < self.reqs.idle or get_idle() < self.reqs.idle:
                     self.alert("Idle time not reached")
                     return False
-            if 'busy' in self.reqs and idle > self.reqs.busy:
-                self.alert("Idle for too long:", idle, '>', self.reqs.busy)
+            if 'busy' in self.reqs and tw.idle > self.reqs.busy:
+                self.alert("Idle for too long:", tw.idle, '>', self.reqs.busy)
                 return False
             if 'random' in self.reqs and random.random() > polling_rate / self.reqs.random:
                 # Random value not reached
+                self.alert("Random not reached:", polling_rate / self.reqs.random)
                 return False
             if 'start' in self.reqs and len(self.history) >= self.reqs.start:
                 return False
             if 'skip' in self.reqs and len(self.history) < self.reqs.skip:
                 self.alert("Skipping process", len(self.history) + 1, 'of', self.reqs.skip)
                 testing_mode = True
-            if 'elapsed' in self.reqs and elapsed < self.reqs.elapsed:
-                self.alert("Elapsed not reached", elapsed)
+            if 'elapsed' in self.reqs and tw.today_elapsed < self.reqs.elapsed:
+                self.alert("Elapsed not reached", tw.today_elapsed, '<', self.reqs.elapsed)
                 return False
             if 'online' in self.reqs and not check_internet():
                 self.alert("Not Online")
@@ -450,13 +481,22 @@ class App:
             print("\tStill running!")
             return False
 
-        self.last_elapsed = elapsed
-        self.last_run = int(time.time())
-        self.next_elapsed = elapsed + self.freq
-
-
+        # Passed all checks ready to run:
         # Compact way to record time start. Numbers indicate seconds since program start
-        self.history.append(int(time.time()-START_TIME))
+        self.history.append(int(now-START_TIME))
+        self.last_run = now
+
+
+        if self.freq:
+            self.next_run = now + self.freq
+
+        '''
+        self.last_elapsed = tw.elapsed
+        self.next_elapsed = tw.elapsed + self.freq
+        '''
+
+
+
         if self.path.lstrip().startswith('#'):
             testing_mode = True
         if testing_mode:
@@ -471,7 +511,7 @@ class App:
                 msgbox(msg)
                 self.thread = None
             else:
-                filename = safe_filename(self.name + '.' + str(int(time.time())))
+                filename = safe_filename(self.name + '.' + str(int(now)))
                 log_file = os.path.abspath(os.path.join(LOG_DIR, filename))
                 _, self.thread = spawn(run_proc, self.path, log=log_file)
         aprint(text, self.name, v=1)

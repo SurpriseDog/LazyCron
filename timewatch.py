@@ -3,7 +3,7 @@
 import sys
 import time
 import subprocess
-from sd.common import rint, check_install, warn, spawn
+from sd.common import check_install, warn
 from sd.chronology import local_time, fmt_time, msleep
 
 import shared
@@ -34,16 +34,18 @@ class TimeWatch:
     "Keep track of idle time, even when computer sleeps"
 
     def __init__(self, verbose=0):
-        self._raw = 0                           # Raw idle number read from system
-        self.idle = 0                           # Seconds of idle from last sleep
-        self.last = 0                           # Last idle returned
-        self.elapsed = 0                        # Total time Computer has spent not idle
+        self.idle = 0                           # Seconds of idle time
+        self.elapsed = 0                        # Total time Computer has spent in usage
+        self.increase = 0                       # Increase in elapsed from last call
+        self.today_elapsed = 0                  # Elapsed just for today
         self.verbose = verbose
 
+
     def reset(self):
+        "Reset counters on new day"
         self.idle = 0
-        self._raw = 0
-        self.last = 0
+        self.today_elapsed = 0
+
 
     def sleep(self, seconds):
         "Sleep for seconds and track missing time"
@@ -52,27 +54,40 @@ class TimeWatch:
         start = time.time()
         missing = msleep(seconds)
         end = time.time()
-        self.update_idle()
 
-        if self.verbose >= 2 and missing / seconds > 0.01:
-            shared.aprint("Unaccounted for time during", fmt_time(seconds), "sleep:", fmt_time(missing), end, start)
+
+        if missing / seconds > 0.02:
+            if self.verbose >= 2:
+                shared.aprint("Unaccounted for time during", fmt_time(seconds), "sleep from:",\
+                               local_time(start), 'to', local_time(end), '=', fmt_time(missing))
+        else:
+            last = self.idle
+            self.idle = get_idle()
+
+
+            # Calculate the increase in idle time
+            if self.idle > last:
+                idle_increase = self.idle - last
+            else:
+                idle_increase = self.idle
+
+            # Adjust the elapsed counters with in use time
+            self.increase = max(seconds - idle_increase, 0)
+            self.elapsed += self.increase
+            self.today_elapsed += self.increase
+
+            if self.verbose >= 3:
+                self.status()
 
         return missing
 
+    def status(self,):
+        print(local_time(),
+              'Elapsed:', fmt_time(self.elapsed),
+              'Idle:', fmt_time(self.idle, digits=2),
+              'Increase:', fmt_time(self.increase, digits=2),
+              )
 
-    def update_idle(self,):
-        "Query system to get idle time"
-        self.last = self._raw
-        self._raw = get_idle()
-
-        if self._raw > self.last:
-            self.idle = self._raw - self.last
-        else:
-            self.idle = self._raw
-        self.elapsed += self.idle
-
-        if self.verbose >= 3:
-            print(local_time(), 'Elapsed:', fmt_time(self.elapsed), 'Idle:', rint(self.idle), 'Raw:', rint(self._raw))
 
     def sleepy_time(self,):
         "Go to sleep without causing unaccounted for time"

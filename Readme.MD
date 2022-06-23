@@ -96,3 +96,10 @@ The following utilities are required:
  * Type ./LazyCron.py -h for help and full list of options
 
 Not sure if your schedule will work correctly? Run the program with the --testing option or just put a `#` before each script path to show what it would do. Logs are kept in /tmp/LazyCron_logs
+
+
+# Troubleshooting:
+
+**My scripts only run once a day!**
+
+  * Make sure the Frequency field has a `0` in it not a `*`

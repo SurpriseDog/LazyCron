@@ -20,6 +20,7 @@ from sd.msgbox import msgbox
 from sd.easy_args import easy_parse
 from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, tman
 
+
 def parse_args():
     "Parse arguments"
     positionals = [\
@@ -59,12 +60,12 @@ def is_busy(min_net=10e3, min_disk=1e6):
 
     net_usage = how_busy.get_network_usage(5, 4)
     if net_usage >= min_net:
-        print("Busy: Network Usage:", fmt(net_usage))
+        aprint("Busy: Network Usage:", fmt(net_usage))
         return True
 
     disk_usage = how_busy.all_disk_usage(5, 4)
     if disk_usage >= min_disk:
-        print("Busy: Disk usage:", fmt(disk_usage))
+        aprint("Busy: Disk usage:", fmt(disk_usage))
         return True
 
     aprint("Not Busy - Network Usage:", fmt(net_usage), "Disk usage:", fmt(disk_usage))
@@ -95,6 +96,8 @@ def main(args):
         while missing > 2 and missing > polling_rate / 10:
             missing = tw.sleep(polling_rate)
         polling_rate = args.polling_rate * 60
+        if verbose >=2 and not counter % 100:
+            tw.status()
 
         # Check for a new day
         if time.localtime().tm_yday != cur_day:
@@ -113,25 +116,24 @@ def main(args):
             if last_schedule_read:
                 aprint("Schedule file updated:", '\n' + '#' * 80)
             else:
+                # The first run
                 print("\n\nSchedule file:", '\n' + '#' * 80)
+                # Add skip req to procs if specified in command line
+                if args.skip:
+                    for proc in schedule_apps:
+                        if 'skip' not in proc.reqs:
+                            proc.reqs['skip'] = 1
             last_schedule_read = time.time()
             schedule_apps = scheduler.read_schedule(schedule_apps, schedule_file, msgbox if counter else warn)
 
 
-        # Run scripts if enough elapsed time has passed
+        # Run scripts
         for proc in schedule_apps:
             if args.stagger and (time.time() - last_run) / 60 < args.stagger:
                 break
-            if proc.in_window():
-                if proc.next_elapsed <= tw.elapsed:
-                    if args.skip and counter < 8:
-                        testing = True
-                    else:
-                        testing = testing_mode
-                    if proc.run(elapsed=tw.elapsed, idle=tw.idle, polling_rate=polling_rate, testing_mode=testing):
-                        last_run = time.time()
-                elif verbose >= 3:
-                    aprint(proc.name, "will run in", fmt_time(proc.next_elapsed - tw.elapsed))
+
+            if proc.run(tw=tw, polling_rate=polling_rate, testing_mode=testing_mode):
+                last_run = time.time()
 
 
         # Put the computer to sleep after checking to make sure nothing is going on.
