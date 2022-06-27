@@ -365,7 +365,13 @@ while True:
 
 def convert_ut_range(unum, **kargs):
     "User time ranges like 3-5pm to machine readable"
-    unum = unum.lower().strip().split('-')
+    unum = unum.lower()
+    if 'to' in unum:
+        unum = unum.split('to')
+    else:
+        unum = unum.split('-')
+    unum = list(map(str.strip, unum))
+
     count = Counter([item[-2:] for item in unum])
     pm = count['pm']
     am = count['am']
@@ -454,8 +460,10 @@ def convert_user_time(unum, default='seconds'):
     # Primary units
     primary = "seconds minutes hours days months years".split()
 
-    # 12 am fix
+    # 12 am/pm fix
     if re.match('12[^1234567890].*am', unum) or unum == '12am':
+        unum = unum.replace('12', '0')
+    if re.match('12[^1234567890].*pm', unum) or unum == '12pm':
         unum = unum.replace('12', '0')
 
     # Text processing:
@@ -478,7 +486,7 @@ def convert_user_time(unum, default='seconds'):
             return num * 3600 + 12 * 3600
         else:
             # Match the text with the first unit found in units so that 3m matches minutes, not months
-            unit = search_list(text, primary, getfirst=True)
+            unit = search_list(text, primary, get='first')
             if not unit:
                 # Otherwise search for less commonly used units in entire list
                 unit = match_conversion(text, conversions)

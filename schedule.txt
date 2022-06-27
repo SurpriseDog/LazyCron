@@ -4,7 +4,7 @@
 
 # Columns are TAB delimited, meaning you must provide a TAB or a minimum of 4 spaces between them!
 
-# An example script line is provided below:
+# Too see more examples, view the  `Readme` or try out the schedule in `test.schedule.txt`
 
 
 

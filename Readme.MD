@@ -38,9 +38,11 @@ Examples: 1-3am, 2pm-4m, 11:30-11:34 - Play around with these numbers, the syste
   * **"Date"** field is usually set as a range to limit it to run on certain days of the week:
 Examples: m-f, every 2nd Thursday
 
+#### Stars
+
   * Use `*` for fields that you don't need to fill in.
     - In the Time field, * means it can run during all 24 hours.
-    - In the Frequency field, * means once a day.
+    - In the Frequency field, * means once a day. Specify `0` to run as often as possible.
     - In the Date field, * means it will run on any day of the year.
     - In the Requirements field, * means no requirements.
 
@@ -51,12 +53,17 @@ Examples: m-f, every 2nd Thursday
 
   *    idle         = Time the computer has been idle for
   *    busy         = Computer must have been in use within time specified
-  *    (un)plugged  = Power cord must be attached
+  *    elapsed      = Computer must be used for a certain amount of time in day before running.
+
+  *    online       = Do we have internet access?
   *    closed/open  = Lid must be closed
+  *    (un)plugged  = Power cord must be attached
+
   *    start        = Only run this many times at startup. 0 = infinite
   *    skip         = Skip running this process x times at startup
-  *    elapsed      = Computer must be used for a certain amount of time in day before running.
-  *    online       = Do we have internet access?
+  *    max          = Maximum number of times to run a script
+  *    reps         = Only run so many times per day or per window of time.
+
   *    random       = Script will run randomly. Example: random 8h will (on average) run every 8 hours. Some days it might run 5+ times, other days not at all. That's [how randomness works.](https://math.stackexchange.com/q/209987/693067)
 
 ```
@@ -103,3 +110,10 @@ Not sure if your schedule will work correctly? Run the program with the --testin
 **My scripts only run once a day!**
 
   * Make sure the Frequency field has a `0` in it not a `*`
+
+**How do I get messages on the desktop if a program fails?**
+
+
+  * Install PyQt5 python module from pip (preferred): `sudo pip install PyQt5`
+
+  * or install the third party app: `zenity` `sudo apt install zenity`

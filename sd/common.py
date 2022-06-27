@@ -9,15 +9,11 @@ import math
 import time
 import queue
 import shutil
-import socket
 import random
+import socket
 import threading
 import subprocess
 from urllib.parse import urlparse
-
-
-def rint(num):
-    return str(int(round(num)))
 
 
 def quote(text):
@@ -32,9 +28,12 @@ def quote(text):
     return q + text + q
 
 
-def set_volume(level=80):
-    "Set computer master volume"
-    srun("amixer -D pulse sset Master " + str(level) + "% on")
+def get_volume():
+    cur_level = []
+    for line in srun('amixer -D pulse'):
+        if 'Playback' in line and '%' in line:
+            cur_level.append(int(re.split('[\\[\\]]', line)[1][:-1]))
+    return int(sum(cur_level) / len(cur_level))
 
 
 def srun(*cmds, **kargs):
@@ -42,12 +41,9 @@ def srun(*cmds, **kargs):
     return quickrun(flatten([str(item).split() for item in cmds]), **kargs)
 
 
-def get_volume():
-    cur_level = []
-    for line in srun('amixer -D pulse'):
-        if 'Playback' in line and '%' in line:
-            cur_level.append(int(re.split('[\\[\\]]', line)[1][:-1]))
-    return int(sum(cur_level) / len(cur_level))
+def set_volume(level=80):
+    "Set computer master volume"
+    srun("amixer -D pulse sset Master " + str(level) + "% on")
 
 
 def play(filename, volume=80, player='', opts='', **kargs):
@@ -80,11 +76,11 @@ def map_nested(func, array):
 
 
 def bisect_small(lis, num):
-    '''Given a sorted list, returns the index of the biggest number smaller than num
+    '''Given a sorted list, returns the index of the biggest number <= than num
     Unlike bisect will never return an index which doesn't exist'''
     end = len(lis) - 1
     for x in range(end + 1):
-        if lis[x] > num:
+        if lis[x] >= num:
             return max(x - 1, 0)
     else:
         return end
@@ -147,6 +143,238 @@ class DotDict(dict):
     def __delitem__(self, key):
         super(DotDict, self).__delitem__(key)
         del self.__dict__[key]
+
+
+def search_list(expr, the_list, get='list', func='match', ignorecase=True, searcher=None):
+    '''Search for expression in each item in list (or dictionary!)
+    get = 'list'    = Return all items found <Default>
+          'first'   = Return the first value found, otherwise None
+          'only'    = Return only one item, error if more
+          'exactly' = Return one item, error if more or less than one
+
+    searcher = Custom lamda function'''
+
+    if not searcher:
+        # func = dict(search='in').get('search', func)
+        # Avoiding regex now in case substring has a regex escape character
+        if ignorecase:
+            expr = expr.lower()
+        if func in ('in', 'search'):
+            if ignorecase:
+                def searcher(expr, item):         # pylint: disable=E0102
+                    return expr in item.lower()
+            else:
+                def searcher(expr, item):         # pylint: disable=E0102
+                    return expr in item
+        elif func == 'match':
+            if ignorecase:
+                def searcher(expr, item):         # pylint: disable=E0102
+                    return item.lower().startswith(expr)
+            else:
+                def searcher(expr, item):         # pylint: disable=E0102
+                    return item.startswith(expr)
+        else:
+            # Could have nested these, but this is faster.
+            raise ValueError("Unknown search type:", func)
+
+    output = []
+    for item in the_list:
+        if searcher(expr, item):
+            if isinstance(the_list, dict):
+                output.append(the_list[item])
+            else:
+                output.append(item)
+            if get == 'first':
+                return output[0]
+    else:
+        if get == 'first':
+            return None
+
+    if get == 'one':
+        if len(output) == 1:
+            return output[0]
+        elif not output:
+            return None
+        else:
+            raise ValueError("Too many items found in list!")
+
+    if get == 'only':
+        if len(output) != 1:
+            raise ValueError("Found", len(output), "items in list!")
+        else:
+            return output[0]
+
+    return output
+
+
+def crop(text, cut=64, ending='...'):
+    "Crop text down a length with ending..."
+    if len(text) <= cut:
+        return text
+    else:
+        cut -= len(ending)
+        cut = 0 if cut < 0 else cut
+        return text[:cut] + ending
+
+
+def check_internet(timeout=8, tries=1):
+    "Check internet connection, return True if on"
+    ips = ['8.8.8.8', '8.8.4.4', '1.1.1.1']
+    for tri in range(tries):
+        if tri:
+            time.sleep(2)
+        ip = random.choice(ips)
+        try:
+            socket.create_connection((ip, 53), timeout)
+            return True
+        except OSError:
+            pass
+    return False
+
+
+def safe_filename(filename, src="/ ", dest="-_", no_http=True, length=200,
+                  forbidden='''*?\\/:<>|'"''', replacement='.'):
+    '''Convert urls and the like to safe filesystem names
+    src, dest is the character translation table
+    length is the max length allowed, set to 200 so rdiff-backup doesn't get upset
+    forbidden characters are replaced with the replacement character'''
+    if no_http:
+        if filename.startswith("http") or filename.startswith("www."):
+            netloc = urlparse(filename).netloc
+            filename = filename[filename.find(netloc):]
+            filename = re.sub("^www\\.", "", filename)
+            filename = filename.strip('/')
+    filename = filename.translate(filename.maketrans(src, dest)).strip()
+    return ''.join(c if c not in forbidden else replacement for c in filename.strip())[:length]
+
+
+def error(*args, header='\nError:', err=RuntimeError, **kargs):
+    eprint(*args, header=header, v=3, **kargs)
+    raise err
+
+
+def quickrun(*cmd, check=False, encoding='utf-8', errors='replace', mode='w', stdin=None,
+             verbose=0, testing=False, ofile=None, trifecta=False, printme=False, hidewarning=False, **kargs):
+    '''Run a command, list of commands as arguments or any combination therof and return
+    the output is a list of decoded lines.
+    check    = if the process exits with a non-zero exit code then quit
+    testing  = Print command and don't do anything.
+    ofile    = output file
+    mode     = output file write mode
+    trifecta = return (returncode, stdout, stderr)
+    stdin    = standard input (auto converted to bytes)
+    printme  = Print to stdout instead of returning it, returns code instead
+    '''
+    cmd = list(map(str, flatten(cmd)))
+    if len(cmd) == 1:
+        cmd = cmd[0]
+
+    if testing:
+        print("Not running command:", cmd)
+        return []
+
+    if verbose:
+        print("Running command:", cmd)
+        print("               =", ' '.join(cmd))
+
+    if ofile:
+        output = open(ofile, mode=mode)
+    else:
+        output = subprocess.PIPE
+
+    if stdin:
+        if type(stdin) != bytes:
+            stdin = stdin.encode()
+
+    if printme:
+        if trifecta:
+            error("quickrun cant use both printme and trifecta")
+        # todo: make more realtime https://stackoverflow.com/questions/803265/getting-realtime-output-using-subprocess
+        ret = subprocess.run(cmd, check=check, stdout=sys.stdout, stderr=sys.stderr, input=stdin, **kargs)
+        code = ret.returncode
+
+    else:
+        # Run the command and get return value
+        ret = subprocess.run(cmd, check=check, stdout=output, stderr=output, input=stdin, **kargs)
+        code = ret.returncode
+        stdout = ret.stdout.decode(encoding=encoding, errors=errors).splitlines() if ret.stdout else []
+        stderr = ret.stderr.decode(encoding=encoding, errors=errors).splitlines() if ret.stderr else []
+
+    if ofile:
+        output.close()
+        return []
+
+    if trifecta:
+        return code, stdout, stderr
+
+    if code and not hidewarning:
+        warn("Process returned code:", code)
+
+    if printme:
+        return ret.returncode
+
+    if not hidewarning:
+        for line in stderr:
+            print(line)
+
+    return stdout
+
+
+def list_get(lis, index, default=''):
+    '''Fetch a value from a list if it exists, otherwise return default
+    Now accepts negative indexes'''
+
+    length = len(lis)
+    if -length <= index < length:
+        return lis[index]
+    else:
+        return default
+
+
+def percent(num, digits=0):
+    if not digits:
+        return str(int(num * 100)) + '%'
+    else:
+        return sig(num * 100, digits) + '%'
+
+
+def flatten(tree):
+    "Flatten a nested list, tuple or dict of any depth into a flat list"
+    # For big data sets use this: https://stackoverflow.com/a/45323085/11343425
+    out = []
+    if isinstance(tree, dict):
+        for key, val in tree.items():
+            if type(val) in (list, tuple, dict):
+                out += flatten(val)
+            else:
+                out.append({key: val})
+
+    else:
+        for item in tree:
+            if type(item) in (list, tuple, dict):
+                out += flatten(item)
+            else:
+                out.append(item)
+    return out
+
+
+def sorted_array(array, column=-1, reverse=False):
+    "Return sorted 2d array line by line"
+    pairs = [(line[column], index) for index, line in enumerate(array)]
+    for _val, index in sorted(pairs, reverse=reverse):
+        # print(index, val)
+        yield array[index]
+
+
+def avg(lis):
+    "Average a list"
+    return sum(lis) / len(lis)
+
+
+def read_file(filename):
+    "Read an entire file into text"
+    with open(filename, 'r') as f:
+        return f.read()
 
 
 def dict_valtokey(dic, val):
@@ -233,244 +461,10 @@ def read_state(filename, multiline=False, forget=False, verbose=True, cleanup_ag
         return f.readline().strip()
 
 
-def search_list(expr, the_list, getfirst=False, func='match', ignorecase=True, searcher=None):
-    '''Search for expression in each item in list (or dictionary!)
-    getfirst = Return the first value found, otherwise None
-    searcher = Custom lamda function'''
-
-    if not searcher:
-        # func = dict(search='in').get('search', func)
-        # Avoiding regex now in case substring has a regex escape character
-        if ignorecase:
-            expr = expr.lower()
-        if func in ('in', 'search'):
-            if ignorecase:
-                def searcher(expr, item):         # pylint: disable=E0102
-                    return expr in item.lower()
-            else:
-                def searcher(expr, item):         # pylint: disable=E0102
-                    return expr in item
-        elif func == 'match':
-            if ignorecase:
-                def searcher(expr, item):         # pylint: disable=E0102
-                    return item.lower().startswith(expr)
-            else:
-                def searcher(expr, item):         # pylint: disable=E0102
-                    return item.startswith(expr)
-        else:
-            # Could have nested these, but this is faster.
-            raise ValueError("Unknown search type:", func)
-
-    output = []
-    for item in the_list:
-        if searcher(expr, item):
-            if isinstance(the_list, dict):
-                output.append(the_list[item])
-            else:
-                output.append(item)
-            if getfirst:
-                return output[0]
-    return output
-
-
-def crop(text, cut=64, ending='...'):
-    "Crop text down a length with ending..."
-    if len(text) <= cut:
-        return text
-    else:
-        cut -= len(ending)
-        cut = 0 if cut < 0 else cut
-        return text[:cut] + ending
-
-
-def check_internet(timeout=8, tries=1):
-    "Check internet connection, return True if on"
-    ips = ['8.8.8.8', '8.8.4.4', '1.1.1.1']
-    for tri in range(tries):
-        if tri:
-            time.sleep(2)
-        ip = random.choice(ips)
-        try:
-            socket.create_connection((ip, 53), timeout)
-            return True
-        except OSError:
-            pass
-    return False
-
-
-def safe_filename(filename, src="/ ", dest="-_", no_http=True, length=200,
-                  forbidden='''*?\\/:<>|'"''', replacement='.'):
-    '''Convert urls and the like to safe filesystem names
-    src, dest is the character translation table
-    length is the max length allowed, set to 200 so rdiff-backup doesn't get upset
-    forbidden characters are replaced with the replacement character'''
-    if no_http:
-        if filename.startswith("http") or filename.startswith("www."):
-            netloc = urlparse(filename).netloc
-            filename = filename[filename.find(netloc):]
-            filename = re.sub("^www\\.", "", filename)
-            filename = filename.strip('/')
-    filename = filename.translate(filename.maketrans(src, dest)).strip()
-    return ''.join(c if c not in forbidden else replacement for c in filename.strip())[:length]
-
-
-def joiner(char, *args):
-    "Convert to string and join with character"
-    if len(args) == 1 and type(args[0]) in (tuple, list):
-        args = args[0]
-    return char.join(map(str, args))
-
-
-def percent(num, digits=0):
-    if not digits:
-        return str(int(num * 100)) + '%'
-    else:
-        return sig(num * 100, digits) + '%'
-
-
-def sorted_array(array, column=-1, reverse=False):
-    "Return sorted 2d array line by line"
-    pairs = [(line[column], index) for index, line in enumerate(array)]
-    for _val, index in sorted(pairs, reverse=reverse):
-        # print(index, val)
-        yield array[index]
-
-
-def avg(lis):
-    "Average a list"
-    return sum(lis) / len(lis)
-
-
-def flatten(tree):
-    "Flatten a nested list, tuple or dict of any depth into a flat list"
-    # For big data sets use this: https://stackoverflow.com/a/45323085/11343425
-    out = []
-    if isinstance(tree, dict):
-        for key, val in tree.items():
-            if type(val) in (list, tuple, dict):
-                out += flatten(val)
-            else:
-                out.append({key: val})
-
-    else:
-        for item in tree:
-            if type(item) in (list, tuple, dict):
-                out += flatten(item)
-            else:
-                out.append(item)
-    return out
-
-
-def quickrun(*cmd, check=False, encoding='utf-8', errors='replace', mode='w', stdin=None,
-             verbose=0, testing=False, ofile=None, trifecta=False, printme=False, hidewarning=False, **kargs):
-    '''Run a command, list of commands as arguments or any combination therof and return
-    the output is a list of decoded lines.
-    check    = if the process exits with a non-zero exit code then quit
-    testing  = Print command and don't do anything.
-    ofile    = output file
-    mode     = output file write mode
-    trifecta = return (returncode, stdout, stderr)
-    stdin    = standard input (auto converted to bytes)
-    printme  = Print to stdout instead of returning it, returns code instead
-    '''
-    cmd = list(map(str, flatten(cmd)))
-    if len(cmd) == 1:
-        cmd = cmd[0]
-
-    if testing:
-        print("Not running command:", cmd)
-        return []
-
-    if verbose:
-        print("Running command:", cmd)
-        print("               =", ' '.join(cmd))
-
-    if ofile:
-        output = open(ofile, mode=mode)
-    else:
-        output = subprocess.PIPE
-
-    if stdin:
-        if type(stdin) != bytes:
-            stdin = stdin.encode()
-
-    if printme:
-        if trifecta:
-            error("quickrun cant use both printme and trifecta")
-        # todo: make more realtime https://stackoverflow.com/questions/803265/getting-realtime-output-using-subprocess
-        ret = subprocess.run(cmd, check=check, stdout=sys.stdout, stderr=sys.stderr, input=stdin, **kargs)
-        code = ret.returncode
-
-    else:
-        # Run the command and get return value
-        ret = subprocess.run(cmd, check=check, stdout=output, stderr=output, input=stdin, **kargs)
-        code = ret.returncode
-        stdout = ret.stdout.decode(encoding=encoding, errors=errors).splitlines() if ret.stdout else []
-        stderr = ret.stderr.decode(encoding=encoding, errors=errors).splitlines() if ret.stderr else []
-
-    if ofile:
-        output.close()
-        return []
-
-    if trifecta:
-        return code, stdout, stderr
-
-    if code and not hidewarning:
-        warn("Process returned code:", code)
-
-    if printme:
-        return ret.returncode
-
-    if not hidewarning:
-        for line in stderr:
-            print(line)
-
-    return stdout
-
-
-def list_get(lis, index, default=''):
-    '''Fetch a value from a list if it exists, otherwise return default
-    Now accepts negative indexes'''
-
-    length = len(lis)
-    if -length <= index < length:
-        return lis[index]
-    else:
-        return default
-
-
-def read_file(filename):
-    "Read an entire file into text"
-    with open(filename, 'r') as f:
-        return f.read()
-
-
 def read_val(file):
     "Read a number from an open file handle"
     file.seek(0)
     return int(file.read())
-
-
-def trailing_avg(lis, power=0.5):
-    "Weighted average that biases the last parts of this list more:"
-    total = 0
-    weights = 0
-    for index, num in enumerate(lis):
-        weight = (index + 1)**power
-        total += weight * num
-        weights += weight
-    return total / weights
-
-
-def chunker(lis, lines=2, overlap=False):
-    '''Take a list a return its values n items at a time
-    alternate way: zip(*[iter(lis)]*n)'''
-    if len(lis) <= lines:
-        yield lis
-    else:
-        step = 1 if overlap else lines
-        for start in range(0, len(lis) - lines + 1, step):
-            yield lis[start:start + lines]
 
 
 def spawn(func, *args, daemon=True, delay=0, **kargs):
@@ -542,16 +536,6 @@ class ThreadManager():
         serial = id(func)
         if serial in self.threads:
             del self.threads[serial]
-
-
-def error(*args, header='\nError:', err=RuntimeError, **kargs):
-    eprint(*args, header=header, v=3, **kargs)
-    raise err
-
-
-def undent(text, tab=''):
-    "Remove whitespace at the beginning of lines of text"
-    return '\n'.join([tab + line.lstrip() for line in text.splitlines()])
 
 
 class Eprinter:
@@ -630,6 +614,11 @@ class Eprinter:
         else:
             print(msg, file=sys.stderr, **kargs)
         return len(msg)
+
+
+def undent(text, tab=''):
+    "Remove whitespace at the beginning of lines of text"
+    return '\n'.join([tab + line.lstrip() for line in text.splitlines()])
 
 
 def warn(*args, header="\n\nWarning:", sep=' ', delay=1 / 64, confirm=False):
@@ -772,5 +761,5 @@ tman = ThreadManager()  # pylint: disable=C0103
 Generated by https://github.com/SurpriseDog/Star-Wrangler
 a Python tool for picking only the required code from source files
 written by SurpriseDog at: https://github.com/SurpriseDog
-2022-06-05
+2022-06-27
 '''

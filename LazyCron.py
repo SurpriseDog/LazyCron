@@ -96,8 +96,6 @@ def main(args):
         while missing > 2 and missing > polling_rate / 10:
             missing = tw.sleep(polling_rate)
         polling_rate = args.polling_rate * 60
-        if verbose >=2 and not counter % 100:
-            tw.status()
 
         # Check for a new day
         if time.localtime().tm_yday != cur_day:
@@ -118,21 +116,22 @@ def main(args):
             else:
                 # The first run
                 print("\n\nSchedule file:", '\n' + '#' * 80)
-                # Add skip req to procs if specified in command line
-                if args.skip:
-                    for proc in schedule_apps:
-                        if 'skip' not in proc.reqs:
-                            proc.reqs['skip'] = 1
             last_schedule_read = time.time()
             schedule_apps = scheduler.read_schedule(schedule_apps, schedule_file, msgbox if counter else warn)
-
+            print('\n')
+            # Add skip req to procs if specified in command line
+            if args.skip:
+                for proc in schedule_apps:
+                    if 'skip' not in proc.reqs:
+                        proc.reqs['skip'] = 1
 
         # Run scripts
         for proc in schedule_apps:
             if args.stagger and (time.time() - last_run) / 60 < args.stagger:
                 break
 
-            if proc.run(tw=tw, polling_rate=polling_rate, testing_mode=testing_mode):
+            if proc.ready(tw, polling_rate):
+                proc.run(testing_mode=testing_mode)
                 last_run = time.time()
 
 
@@ -166,4 +165,5 @@ if __name__ == "__main__":
     scheduler.LOG_DIR = UA.logs
     mkdir(UA.logs)
     gohome()
+    os.nice(5)
     main(UA)
