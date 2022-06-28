@@ -11,12 +11,12 @@ import shared
 import how_busy
 import computer
 import scheduler
-from chronology import fmt_time
 from timewatch import TimeWatch
 from scheduler import aprint
 
 
 from sd.msgbox import msgbox
+from sd.chronology import fmt_time
 from sd.easy_args import easy_parse
 from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, tman
 
