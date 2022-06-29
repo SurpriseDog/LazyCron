@@ -4,18 +4,23 @@
 
 ################################################################################
 
+
 import os
+import re
 import time
+import shutil
+import traceback
 
 import shared
 import how_busy
 import scheduler
-from chronology import fmt_time, local_time
-from timewatch import TimeWatch
-from scheduler import aprint
 
+from shared import aprint
+from timewatch import TimeWatch
+from chronology import fmt_time, local_time
 
 from sd.msgbox import msgbox
+from sd.columns import auto_cols
 from sd.easy_args import easy_parse
 from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, tman
 
@@ -36,6 +41,8 @@ def parse_args():
     ['testing', '', bool],
     "Do everything, but actually run the scripts.",
     ['logs', '', str, '/tmp/LazyCron_logs'],
+    ['nice', '', int, 10],
+    "Start processes with given Unix nice level\n(Higher values are nicer to the cpu)",
     "Logging directory",
     ['skip', '', bool],
     "Don't run apps on startup, wait a bit.",
@@ -71,13 +78,121 @@ def is_busy(min_net=10e3, min_disk=1e6):
     return False
 
 
+def read_line(line, warn_score=5):
+    "Given a line delimited by tabs and spaces, convert it to 5 fields"
+
+    candidates = []
+    # line = re.sub('\t', '    ', line)
+    # Start with a large number of spaces (or any tabs) and reduce until the line is parsed
+    for spaces in range(8, 1, -1):
+        cols = re.split(r"\t+|\s{" + str(spaces) + ",}", line)
+        # cols = re.split(r"\s{" + str(spaces) + ",}", line)
+        cols = [item.strip() for item in cols if item]
+        if len(cols) < 5:
+            continue
+
+        # Score each candidate based on spaces and tabs
+        score = 10 - (len(cols) - 5) * 2        # 2 points off per extra field
+        for item in cols[:4]:
+            score -= item.count('  ') * 3       # double spaces inside field
+            score -= item.count('\t') * 6       # tabs inside field
+        candidates.append([score, cols])
+
+    if not candidates:
+        return False
+
+    def print_can():
+        for score, can in candidates:
+            print(str(score) + ':', can)
+
+    # Return the best scoring candidate
+    candidates.sort()
+    if shared.VERBOSE >= 3:
+        print_can()
+    score, cols = candidates[-1]
+
+    # Bump up a low score if path is valid
+    if score <= warn_score:
+        path = cols[4].lstrip('#').strip().split()[:1]
+        print("path =", path)
+        if path and shutil.which(path[0]):
+            score += 5
+
+    if score <= warn_score:
+        print_can()
+        warn("Did I read this line correctly?")
+        print('Source    :', repr(line))
+        print('Conversion:', cols)
+        print("Try using tabs instead of spaces if wrong")
 
 
-def main(args, verbose=1):
+    # If excess fields, combine the rest of the fields after 5 and return
+    if len(cols) == 5:
+        return cols
+    else:
+        path = line[line.index(cols[4]):]
+        return cols[:4] + [path]
+
+
+def read_schedule(schedule_apps, alert=warn):
+    '''
+    Read the schedule file,
+    schedule_apps = List of Apps
+    alert =         send messages to userspace with warn or msgbox
+    '''
+    new_sched = []
+    headers = "time frequency date reqs path".split()
+
+    with open(UA.schedule) as f:
+        for line in f.readlines():
+            # Ignore comments and empty lines
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+
+            # Find lines that have 5 fields in them
+            print('\n' * 2)
+            cols = read_line(line)
+            if not cols:
+                alert("Can't process line:", repr(line), "\nMake sure you put tabs in between columns")
+                continue
+
+            auto_cols([[item.title()+':' for item in headers], [repr(item) for item in cols], []])
+            line = dict(zip(headers, cols))
+
+            # Print the results and see if it matches an existing App
+            # print("\n\n\n" + repr(line))
+            for proc in schedule_apps:
+                if line == proc.args:
+                    print("Using existing App definition:", proc.name)
+                    new_sched.append(proc)
+                    break
+
+            # Otherwise try to create a new one
+            else:
+                try:
+                    proc = scheduler.App(line)
+                except Exception as e:      # Bare exception to cover any processing errors
+                    alert("Could not process line:", line)
+                    traceback.print_exc()
+                    print(e, '\n\n\n')
+                    continue
+
+                proc.add_reqs({'skip': UA.skip, 'nice' : UA.nice})
+                proc.print()
+                if proc.verify():
+                    new_sched.append(proc)
+
+    # Return the old version if new schedule has errors
+    if not new_sched:
+        return schedule_apps
+    else:
+        return new_sched
+
+
+def main(verbose=1):
     polling_rate = 0                        # Time to rest at the end of every loop
-    idle_sleep = args.idle * 60             # Go to sleep after this long plugged in
-    schedule_file = args.schedule           # Tab seperated input file
-    testing_mode = args.testing             # Don't actually do anything
+    idle_sleep = UA.idle * 60               # Go to sleep after this long plugged in
 
     tw = TimeWatch(verbose=verbose)
     last_schedule_read = 0                  # last time the schedule file was read
@@ -92,7 +207,7 @@ def main(args, verbose=1):
         # Loop again to avoid edge case where the machine wakes up and is immediately put back to sleep
         while missing > 2 and missing > polling_rate / 10:
             missing = tw.sleep(polling_rate)
-        polling_rate = args.polling_rate * 60
+        polling_rate = UA.polling_rate * 60
 
         # Check for a new day
         if time.localtime().tm_yday != cur_day:
@@ -107,28 +222,21 @@ def main(args, verbose=1):
 
 
         # Read the schedule file if it's been updated
-        if os.path.getmtime(schedule_file) > last_schedule_read:
+        if os.path.getmtime(UA.schedule) > last_schedule_read:
             if last_schedule_read:
                 aprint("Schedule file updated:", '\n' + '#' * 80)
             else:
                 # The first run
                 print("\n\nSchedule file:", '\n' + '#' * 80)
             last_schedule_read = time.time()
-            schedule_apps = scheduler.read_schedule(schedule_apps, schedule_file, msgbox if counter else warn)
-            print('\n')
-            # Add skip req to procs if specified in command line
-            if args.skip:
-                for proc in schedule_apps:
-                    if 'skip' not in proc.reqs:
-                        proc.reqs['skip'] = 1
+            schedule_apps = read_schedule(schedule_apps, msgbox if counter else warn)
 
         # Run scripts
         for proc in schedule_apps:
-            if args.stagger and (time.time() - last_run) / 60 < args.stagger:
+            if UA.stagger and (time.time() - last_run) / 60 < UA.stagger:
                 break
-
             if proc.ready(tw, polling_rate):
-                proc.run(testing_mode=testing_mode)
+                proc.run(testing_mode=UA.testing_mode)
                 last_run = time.time()
 
 
@@ -137,16 +245,15 @@ def main(args, verbose=1):
             if shared.COMP.plugged_in():
                 # Plugged mode waits for idle system.
                 ready, results = tman.query(is_busy, max_age=polling_rate * 1.5)
-                if ready:
-                    if not results:
-                        print("Going to sleep\n")
-                        if not testing_mode:
-                            tw.sleepy_time()
-                            polling_rate = 2
+                if ready and not results:
+                    print("Going to sleep\n")
+                    if not UA.testing_mode:
+                        tw.sleepy_time()
+                        polling_rate = 2
             else:
                 # Battery Mode doesn't wait for idle system.
                 print("Idle and unplugged. Going to sleep.\n")
-                if not testing_mode:
+                if not UA.testing_mode:
                     tw.sleepy_time()
                     polling_rate = 2
 
@@ -162,6 +269,6 @@ if __name__ == "__main__":
     shared.LOG_DIR = UA.logs
     mkdir(UA.logs)
     gohome()
-    os.nice(5)
+    os.nice(shared.NICE)
     print("Log started at:", local_time(shared.START_TIME), '=', int(shared.START_TIME))
-    main(UA, shared.VERBOSE)
+    main(shared.VERBOSE)

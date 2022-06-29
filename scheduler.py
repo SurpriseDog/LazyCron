@@ -7,7 +7,6 @@ import shutil
 import bisect
 import random
 import datetime
-import traceback
 import subprocess
 from datetime import datetime as dada
 
@@ -18,7 +17,7 @@ from shared import aprint
 from timewatch import get_idle
 
 from sd.msgbox import msgbox
-from sd.columns import indenter, auto_cols
+from sd.columns import indenter
 from sd.common import safe_filename, error, check_internet, spawn, crop, quickrun
 from sd.common import search_list, DotDict, warn, unique_filename
 
@@ -47,121 +46,12 @@ def get_day(day, cycle, today=None):
     return today + delta
 
 
-def read_line(line, warn_score=5):
-    "Given a line delimited by tabs and spaces, convert it to 5 fields"
-
-    candidates = []
-    # line = re.sub('\t', '    ', line)
-    # Start with a large number of spaces (or any tabs) and reduce until the line is parsed
-    for spaces in range(8, 1, -1):
-        cols = re.split(r"\t+|\s{" + str(spaces) + ",}", line)
-        # cols = re.split(r"\s{" + str(spaces) + ",}", line)
-        cols = [item.strip() for item in cols if item]
-        if len(cols) < 5:
-            continue
-
-        # Score each candidate based on spaces and tabs
-        score = 10 - (len(cols) - 5) * 2        # 2 points off per extra field
-        for item in cols[:4]:
-            score -= item.count('  ') * 3       # double spaces inside field
-            score -= item.count('\t') * 6       # tabs inside field
-        candidates.append([score, cols])
-
-    if not candidates:
-        return False
-
-    def print_can():
-        for score, can in candidates:
-            print(str(score) + ':', can)
-
-    # Return the best scoring candidate
-    candidates.sort()
-    if shared.VERBOSE >= 3:
-        print_can()
-    score, cols = candidates[-1]
-
-    # Bump up a low score if path is valid
-    if score <= warn_score:
-        path = cols[4].lstrip('#').strip().split()[:1]
-        print("path =", path)
-        if path and shutil.which(path[0]):
-            score += 5
-
-    if score <= warn_score:
-        print_can()
-        warn("Did I read this line correctly?")
-        print('Source    :', repr(line))
-        print('Conversion:', cols)
-        print("Try using tabs instead of spaces if wrong")
-
-
-    # If excess fields, combine the rest of the fields after 5 and return
-    if len(cols) == 5:
-        return cols
-    else:
-        path = line[line.index(cols[4]):]
-        return cols[:4] + [path]
-
-
-
-def read_schedule(schedule_apps, schedule_file, alert=warn):
-    '''
-    Read the schedule file,
-    schedule_apps = List of Apps
-    schedule_file = txt file with tab delimted columns
-    alert =         send messages to userspace with warn or msgbox
-    '''
-    new_sched = []
-    headers = "time frequency date reqs path".split()
-
-    with open(schedule_file) as f:
-        for line in f.readlines():
-            # Ignore comments and empty lines
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-
-            # Find lines that have 5 fields in them
-            print('\n' * 2)
-            cols = read_line(line)
-            if not cols:
-                alert("Can't process line:", repr(line), "\nMake sure you put tabs in between columns")
-                continue
-
-            auto_cols([[item.title()+':' for item in headers], [repr(item) for item in cols], []])
-            line = dict(zip(headers, cols))
-
-            # Print the results and see if it matches an existing App
-            # print("\n\n\n" + repr(line))
-            for proc in schedule_apps:
-                if line == proc.args:
-                    print("Using existing App definition:", proc.name)
-                    new_sched.append(proc)
-                    break
-
-            # Otherwise try to create a new one
-            else:
-                try:
-                    proc = App(line)
-                except Exception as e:      # Bare exception to cover any processing errors
-                    alert("Could not process line:", line)
-                    traceback.print_exc()
-                    print(e, '\n\n\n')
-                    continue
-
-                proc.print()
-                if proc.verify():
-                    new_sched.append(proc)
-
-    # Return the old version if new schedule has errors
-    if not new_sched:
-        return schedule_apps
-    else:
-        return new_sched
-
-
-def run_proc(cmd, log):
+def run_proc(cmd, log, nice=None):
     "Spawn a thread to run a command and then write to log if needed."
+
+    if nice:
+        nice -= shared.NICE
+        os.nice(nice)
 
     folder, file = os.path.split(log)
     log = os.path.join(folder, safe_filename(file))
@@ -250,6 +140,7 @@ class App:
                        skip=1,
                        max=0,
                        reps=1,
+                       nice=5,
                       )
 
         aliases = dict(plug='plugged',
@@ -316,6 +207,12 @@ class App:
         for key in list(self.reqs.keys()):
             if key not in found:
                 del self.reqs[key]
+
+    def add_reqs(self, reqs):
+        "Add user reqs (from commandline) to self.reqs) if not already present"
+        for req in reqs:
+            if req not in self.reqs:
+                self.reqs[req] = reqs[req]
 
 
     def verify(self,):
@@ -666,9 +563,10 @@ class App:
                 msgbox(msg)
                 self.thread = None
             else:
+                nice = 5 if 'nice' not in self.reqs else self.reqs.nice
                 filename = safe_filename(self.name + '.' + str(int(now)))
                 log_file = os.path.abspath(os.path.join(shared.LOG_DIR, filename))
-                _, self.thread = spawn(run_proc, self.path, log=log_file)
+                _, self.thread = spawn(run_proc, self.path, log=log_file, nice=nice)
 
         self.alert(text, v=1)
         if self.verbose >= 2:

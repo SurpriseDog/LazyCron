@@ -222,7 +222,6 @@ class ArgMaster():
             if isinstance(args, str):
                 msg = undent(args.strip())
                 if self.autoformat:
-                    msg = msg.title()
                     if msg and not msg.endswith('.'):
                         last = msg.split()[-1]
                         if last[-1].isalnum() and not last.startswith('-'):

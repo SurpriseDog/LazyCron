@@ -16,7 +16,7 @@
 12am to 11:59pm      0               *                max 2                         # max
 9-11pm               *               *                reps 2                        # reps
 *                    *				 Thursday-Mon     reps 1						# days
-*                    0				 *			      start							# start
+*                    0				 *			      start							sha256sum /dev/urandom
 
 # 2 seconds:
 # reset;./LazyCron.py test.schedule.txt --polling 0.0333333 -v 2

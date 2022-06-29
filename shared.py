@@ -7,6 +7,7 @@ VERBOSE = 1
 START_TIME = time.time()
 COMP = computer.Computer()
 LOG_DIR = '/tmp/log_dir'
+NICE = 5
 
 def aprint(*args, v=1, header='\n', **kargs):
     if VERBOSE >= v:
