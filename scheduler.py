@@ -12,7 +12,6 @@ import subprocess
 from datetime import datetime as dada
 
 import shared
-import computer
 import sd.chronology as chronos
 
 from shared import aprint
@@ -23,11 +22,6 @@ from sd.columns import indenter, auto_cols
 from sd.common import safe_filename, error, check_internet, spawn, crop, quickrun
 from sd.common import search_list, DotDict, warn, unique_filename
 
-
-START_TIME = time.time()
-COMP = computer.Computer()
-LOG_DIR = '/tmp/log_dir'
-print("Log started at:", chronos.local_time(START_TIME), '=', int(START_TIME))
 
 
 def get_day(day, cycle, today=None):
@@ -278,8 +272,6 @@ class App:
         self.aliases = aliases
 
 
-
-    # todo import search_list into common, test, pysearch search_list getfirst
     def process_reqs(self, args):
         "Process requirements field"
         # print("processing requirements field:", args)
@@ -552,9 +544,8 @@ class App:
 
     def show_history(self,):
         "Show the history of timestamps for process"
-
         # Compact way to show time start. Numbers indicate seconds since program start
-        history = [str(int(ts - START_TIME)) for ts in self.history[-11:]]
+        history = [str(int(ts - shared.START_TIME)) for ts in self.history[-11:]]
 
         if len(history) >= 2:
             if len(history) < 11:
@@ -630,10 +621,10 @@ class App:
 
 
             # State requirements:
-            if 'closed' in self.reqs and self.reqs.closed == COMP.lid_open():
+            if 'closed' in self.reqs and self.reqs.closed == shared.COMP.lid_open():
                 self.alert("Wrong lid state")
                 return False
-            if 'plugged' in self.reqs and self.reqs.plugged != COMP.plugged_in():
+            if 'plugged' in self.reqs and self.reqs.plugged != shared.COMP.plugged_in():
                 self.alert("Wrong plug state")
                 return False
             if 'online' in self.reqs and not check_internet():
@@ -676,7 +667,7 @@ class App:
                 self.thread = None
             else:
                 filename = safe_filename(self.name + '.' + str(int(now)))
-                log_file = os.path.abspath(os.path.join(LOG_DIR, filename))
+                log_file = os.path.abspath(os.path.join(shared.LOG_DIR, filename))
                 _, self.thread = spawn(run_proc, self.path, log=log_file)
 
         self.alert(text, v=1)

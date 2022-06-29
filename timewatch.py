@@ -58,8 +58,8 @@ class TimeWatch:
 
         if missing / seconds > 0.02:
             if self.verbose >= 2:
-                shared.aprint("Unaccounted for time during", fmt_time(seconds), "sleep from",\
-                               local_time(start), 'to', local_time(end), 'of', fmt_time(missing))
+                shared.aprint("Unaccounted for time during", fmt_time(seconds), "sleep of",\
+                              fmt_time(missing), "from", local_time(start), 'to', local_time(end))
         else:
             last = self.idle
             self.idle = get_idle()

@@ -9,14 +9,13 @@ import time
 
 import shared
 import how_busy
-import computer
 import scheduler
+from chronology import fmt_time, local_time
 from timewatch import TimeWatch
 from scheduler import aprint
 
 
 from sd.msgbox import msgbox
-from sd.chronology import fmt_time
 from sd.easy_args import easy_parse
 from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, tman
 
@@ -74,19 +73,17 @@ def is_busy(min_net=10e3, min_disk=1e6):
 
 
 
-def main(args):
+def main(args, verbose=1):
     polling_rate = 0                        # Time to rest at the end of every loop
     idle_sleep = args.idle * 60             # Go to sleep after this long plugged in
     schedule_file = args.schedule           # Tab seperated input file
     testing_mode = args.testing             # Don't actually do anything
-    verbose = args.verbose                  # Verbosity level
 
     tw = TimeWatch(verbose=verbose)
     last_schedule_read = 0                  # last time the schedule file was read
     last_run = 0                            # Time when the last program was started
     schedule_apps = []                      # Apps found in schedule.txt
     cur_day = time.localtime().tm_yday      # Used for checking for new day
-    comp = computer.Computer()
 
 
     for counter in itercount():
@@ -137,7 +134,7 @@ def main(args):
 
         # Put the computer to sleep after checking to make sure nothing is going on.
         if idle_sleep and tw.idle > idle_sleep:
-            if comp.plugged_in():
+            if shared.COMP.plugged_in():
                 # Plugged mode waits for idle system.
                 ready, results = tman.query(is_busy, max_age=polling_rate * 1.5)
                 if ready:
@@ -162,8 +159,9 @@ if __name__ == "__main__":
                       --idle requires iostat () to determine if the computer can be put to sleep.''')
     # Min level to print messages:
     shared.VERBOSE = UA.verbose
-    scheduler.LOG_DIR = UA.logs
+    shared.LOG_DIR = UA.logs
     mkdir(UA.logs)
     gohome()
     os.nice(5)
-    main(UA)
+    print("Log started at:", local_time(shared.START_TIME), '=', int(shared.START_TIME))
+    main(UA, shared.VERBOSE)

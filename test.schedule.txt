@@ -1,4 +1,4 @@
-# A schedule for testing LazyCron. All times are given in seconds.
+# A schedule for testing LazyCron.
 
 # Example commands are below:
 #Time            Frequency        Date                Requirements                  Script Path

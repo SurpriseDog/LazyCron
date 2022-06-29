@@ -4,7 +4,7 @@ With LazyCron, "Your computer will get around to it eventually." LazyCron takes 
 
 ----
 
-# Schedule.txt
+## Schedule.txt
 
 You edit your schedule.txt file with programs to run:
 
@@ -77,13 +77,13 @@ AKA: The computer was "busy" sometime in the last 10 minutes, but has now been "
 ----
 
 
-# Bonus functionality:
+## Bonus functionality:
 
 
 `--idle (minutes)` will put the computer to sleep after so many minutes. If plugged in, it will check first to make sure you don't have any disk or network activity. I find this more useful than using the default sleep timer, which will put the computer to sleep regardless of what's going on (e.g. it's in the middle of a long, slow file download or file copy operation).
 
 
-# Installation:
+## Installation:
 
 The following utilities are required:
 
@@ -96,16 +96,16 @@ The following utilities are required:
     sudo apt install xprintidle sysstat
 ```
 
-# Usage:
+## Usage:
 
  * Edit schedule.txt with your own personal programs.
  * Run ./LazyCron.py
  * Type ./LazyCron.py -h for help and full list of options
 
-Not sure if your schedule will work correctly? Run the program with the --testing option or just put a `#` before each script path to show what it would do. Logs are kept in /tmp/LazyCron_logs
+Not sure if your schedule will work correctly? Run the program with the --testing option or just put a `##` before each script path to show what it would do. Logs are kept in /tmp/LazyCron_logs
 
 
-# Troubleshooting:
+## Troubleshooting:
 
 **My scripts only run once a day!**
 
@@ -117,3 +117,9 @@ Not sure if your schedule will work correctly? Run the program with the --testin
   * Install PyQt5 python module from pip (preferred): `sudo pip install PyQt5`
 
   * or install the third party app: `zenity` `sudo apt install zenity`
+
+**What does the list of numbers mean everytime a program is started in `--verbose = 2 mode?`**
+
+  * It's a history of runtimes. Instead of recording the unix timestamp, I found it more compact to record the number seconds since the log started.
+
+  * Add these numbers to the timestamp at the start of the log to get an exact [unix timestamp](https://en.wikipedia.org/wiki/Unix_time) of when each program started.
