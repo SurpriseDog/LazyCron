@@ -210,9 +210,9 @@ class App:
 
     def add_reqs(self, reqs):
         "Add user reqs (from commandline) to self.reqs) if not already present"
-        for req in reqs:
-            if req not in self.reqs:
-                self.reqs[req] = reqs[req]
+        for req, value in reqs.items():
+            if value and req not in self.reqs:
+                self.reqs[req] = value
 
 
     def verify(self,):

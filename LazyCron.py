@@ -44,15 +44,22 @@ def parse_args():
     ['nice', '', int, 10],
     "Start processes with given Unix nice level\n(Higher values are nicer to other processes)",
     "Logging directory",
-    ['skip', '', bool],
+    ['skip', '', int, 0],
     "Don't run apps on startup, wait a bit.",
     ['stagger', '', float, 0],
     "Wait x minutes between starting programs.",
     ]
-    return easy_parse(args,
+    args = easy_parse(args,
                       positionals,
                       usage='<schedule file>, options...',
                       description='Monitor the system for idle states and run scripts at the best time.')
+
+    # Defaults if no value given
+    if args.skip is None:
+        args.skip = 1
+    if args.verbose is None:
+        args.verbose = 2
+    return args
 
 
 def is_busy(min_net=10e3, min_disk=1e6):
@@ -177,7 +184,6 @@ def read_schedule(schedule_apps, alert=warn):
                     traceback.print_exc()
                     print(e, '\n\n\n')
                     continue
-
                 proc.add_reqs({'skip': UA.skip, 'nice' : UA.nice})
                 proc.print()
                 if proc.verify():
