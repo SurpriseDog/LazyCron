@@ -64,6 +64,7 @@ Examples: m-f, every 2nd Thursday
   *    max          = Maximum number of times to run a script
   *    reps         = Only run so many times per day or per window of time.
 
+  *    nice         = Start script with unix nice value. Higher values are nicer to other processes
   *    random       = Script will run randomly. Example: random 8h will (on average) run every 8 hours. Some days it might run 5+ times, other days not at all. That's [how randomness works.](https://math.stackexchange.com/q/209987/693067)
 
 ```

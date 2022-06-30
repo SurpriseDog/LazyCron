@@ -56,7 +56,7 @@ class TimeWatch:
         end = time.time()
 
 
-        if missing / seconds > 0.02:
+        if missing / seconds > 0.05:
             if self.verbose >= 2:
                 shared.aprint("Unaccounted for time during", fmt_time(seconds), "sleep of",\
                               fmt_time(missing), "from", local_time(start), 'to', local_time(end))

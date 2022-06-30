@@ -42,7 +42,7 @@ def parse_args():
     "Do everything, but actually run the scripts.",
     ['logs', '', str, '/tmp/LazyCron_logs'],
     ['nice', '', int, 10],
-    "Start processes with given Unix nice level\n(Higher values are nicer to the cpu)",
+    "Start processes with given Unix nice level\n(Higher values are nicer to other processes)",
     "Logging directory",
     ['skip', '', bool],
     "Don't run apps on startup, wait a bit.",
@@ -236,7 +236,7 @@ def main(verbose=1):
             if UA.stagger and (time.time() - last_run) / 60 < UA.stagger:
                 break
             if proc.ready(tw, polling_rate):
-                proc.run(testing_mode=UA.testing_mode)
+                proc.run(testing_mode=UA.testing)
                 last_run = time.time()
 
 
@@ -247,13 +247,13 @@ def main(verbose=1):
                 ready, results = tman.query(is_busy, max_age=polling_rate * 1.5)
                 if ready and not results:
                     print("Going to sleep\n")
-                    if not UA.testing_mode:
+                    if not UA.testing:
                         tw.sleepy_time()
                         polling_rate = 2
             else:
                 # Battery Mode doesn't wait for idle system.
                 print("Idle and unplugged. Going to sleep.\n")
-                if not UA.testing_mode:
+                if not UA.testing:
                     tw.sleepy_time()
                     polling_rate = 2
 
