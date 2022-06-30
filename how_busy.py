@@ -11,7 +11,7 @@ import time
 import itertools
 
 from sd.columns import auto_cols
-from sd.common import avg, sorted_array, flatten, check_install, percent, list_get, quickrun
+from sd.common import avg, sorted_array, flatten, check_install, percent, list_get, quickrun, DotDict, spawn
 
 # Kib vs KB
 # iostat uses KiB: https://man7.org/linux/man-pages/man1/iostat.1.html
@@ -82,6 +82,12 @@ def get_network_usage(interval=1, samples=4, verbose=0):
     return int(sum(map(float, out)) * 1024)
 
 
+def get_cpu_usage(interval=1, samples=4):
+    out = quickrun(['mpstat', interval, samples])
+    idle = out[-1].split()[-1]
+    return 100 - float(idle)
+
+
 def find_device(folder):
     "Given a directory, find the device"
     if os.path.isdir(folder):
@@ -105,8 +111,6 @@ def wait_until_not_busy(folder, threshold=11, wait=2, reps=8, delta=2, sleep=2):
             print(percent(usage), '>', int(threshold))
         threshold += ((x + 1) * delta)
         time.sleep(x * sleep)
-
-
 
 
 if __name__ == "__main__":

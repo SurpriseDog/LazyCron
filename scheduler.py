@@ -22,7 +22,6 @@ from sd.common import safe_filename, error, check_internet, spawn, crop, quickru
 from sd.common import search_list, DotDict, warn, unique_filename
 
 
-
 def get_day(day, cycle, today=None):
     "Given a day of the week/month/year, return the next occurence"
     if not today:

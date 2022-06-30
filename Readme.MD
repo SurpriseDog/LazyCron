@@ -51,20 +51,20 @@ Examples: m-f, every 2nd Thursday
 
 ```
 
-  *    idle         = Time the computer has been idle for
-  *    busy         = Computer must have been in use within time specified
+  *    idle         = Time the computer has been idle for.
+  *    busy         = Computer must have been in use within time specified.
   *    elapsed      = Computer must be used for a certain amount of time in day before running.
 
   *    online       = Do we have internet access?
-  *    closed/open  = Lid must be closed
-  *    (un)plugged  = Power cord must be attached
+  *    closed/open  = Lid must be closed.
+  *    (un)plugged  = Power cord must be attached.
 
   *    start        = Only run this many times at startup. 0 = infinite
-  *    skip         = Skip running this process x times at startup
-  *    max          = Maximum number of times to run a script
+  *    skip         = Skip running this process x times at startup.
+  *    max          = Maximum number of times to run a script.
   *    reps         = Only run so many times per day or per window of time.
 
-  *    nice         = Start script with unix nice value. Higher values are nicer to other processes
+  *    nice         = Start script with unix nice value. Higher values are nicer to other processes.
   *    random       = Script will run randomly. Example: random 8h will (on average) run every 8 hours. Some days it might run 5+ times, other days not at all. That's [how randomness works.](https://math.stackexchange.com/q/209987/693067)
 
 ```

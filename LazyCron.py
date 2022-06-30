@@ -17,7 +17,7 @@ import scheduler
 
 from shared import aprint
 from timewatch import TimeWatch
-from chronology import fmt_time, local_time
+from sd.chronology import fmt_time, local_time
 
 from sd.msgbox import msgbox
 from sd.columns import auto_cols
