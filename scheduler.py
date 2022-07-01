@@ -19,7 +19,7 @@ from timewatch import get_idle
 from sd.msgbox import msgbox
 from sd.columns import indenter
 from sd.common import safe_filename, error, check_internet, spawn, crop, quickrun
-from sd.common import search_list, DotDict, warn, unique_filename
+from sd.common import search_list, DotDict, warn, unique_filename, ConvertDataSize, rfs
 
 
 def get_day(day, cycle, today=None):
@@ -88,6 +88,50 @@ def run_proc(cmd, log, nice=None):
         quickrun('sd/msgbox.py', ' '.join((crop(cmd), "returned code", str(code))))
 
 
+TIME_REQS = ('idle', 'busy', 'random', 'elapsed')
+DATA_REQS = ('disk', 'network')
+
+def get_reqs():
+    "Requirements to run processes"
+    # These are default values if no argument given by user
+    reqs = DotDict(plugged=True,
+                   unplugged=True,
+                   idle=10 * 60,
+                   busy=10 * 60,
+                   closed=True,
+                   open=True,
+                   random=86400,
+                   start=1,
+                   online=True,
+                   elapsed=10 * 60,
+                   skip=1,
+                   max=0,
+                   reps=1,
+                   nice=5,
+                   disk=shared.LOW_DISK,
+                   network=shared.LOW_NET,
+                   cpu=shared.LOW_CPU,
+                  )
+
+    aliases = dict(plug='plugged',
+                   unplug='unplugged',
+                   lazy='idle',
+                   rand='random',
+                   startup='start',
+                   shut='closed',
+                   skipped='skip',
+                   internet='online',
+                   used='elapsed',
+                   usage='elapsed',
+                   maximum='max',
+                   disc='disk',
+                   repititions='reps',
+                   repetitions='reps',
+                   )
+    assert not set(aliases.keys()) & set(reqs.keys())             # No repeats between aliases and real reqs
+    assert all([val in reqs.keys() for val in aliases.values()])  # All values in aliases are legit reqs
+    return reqs, aliases
+
 
 class App:
     "Spawn processes during windows of time when certain conditions are met"
@@ -100,7 +144,6 @@ class App:
         self.stop = 0               # End time in UTC
         self.freq = None            # Frequency. None = Run once a day
         self.history = []           # When the app last ran
-
 
         self.last_run = 0           # Last time the script was run
         self.next_run = 0           # Next time the script can run
@@ -115,51 +158,10 @@ class App:
             self.name = name[0].rstrip(',') + '...'
         else:
             self.name = name[0].rstrip(',')
-        self.reqs = None
-        self.aliases = None
-        self.set_reqs()
 
-
-        self.process_args()         # Process data lines
+        self.reqs, self.aliases = get_reqs()        # Requirements and aliases to requirements
+        self.process_args()                         # Process data lines
         self.calc_window()
-
-    def set_reqs(self,):
-        "Requirements to run processes"
-        # These are default values if no argument given by user
-        reqs = DotDict(plugged=True,
-                       unplugged=True,
-                       idle=10 * 60,
-                       busy=10 * 60,
-                       closed=True,
-                       open=True,
-                       random=86400,
-                       start=1,
-                       online=True,
-                       elapsed=10 * 60,
-                       skip=1,
-                       max=0,
-                       reps=1,
-                       nice=5,
-                      )
-
-        aliases = dict(plug='plugged',
-                       unplug='unplugged',
-                       lazy='idle',
-                       rand='random',
-                       startup='start',
-                       shut='closed',
-                       skipped='skip',
-                       internet='online',
-                       used='elapsed',
-                       usage='elapsed',
-                       maximum='max',
-                       repititions='reps',
-                       repetitions='reps',
-                       )
-        assert not set(aliases.keys()) & set(reqs.keys())             # No repeats between aliases and real reqs
-        assert all([val in reqs.keys() for val in aliases.values()])  # All values in aliases are legit reqs
-        self.reqs = reqs
-        self.aliases = aliases
 
 
     def process_reqs(self, args):
@@ -184,20 +186,31 @@ class App:
             # Get default value if not supplied
             if not val:
                 val = self.reqs[match]
+            # print("Processing req:", match, repr(val))
 
-
-            if match in ('idle', 'busy', 'random', 'elapsed'):
-                val = chronos.convert_user_time(val, default='minutes')
-            else:
-                val = int(val)
 
             # deal with plugged/unplugged closed/open...
             if match in inversions:
                 match = inversions[match]
+                inverted = True
+            else:
+                inverted = False
+
+            # Non numeric conversions
+            if match in TIME_REQS:
+                val = chronos.convert_user_time(val, default='minutes')
+            elif match in ('plugged', 'closed', 'online'):
+                val = bool(val)
+            elif match in DATA_REQS:
+                val = re.sub('second[s]*', 's', val)
+                val = re.sub('[/\\\\]*[s]$', '', val)
+                val = ConvertDataSize()(val)
+            else:
+                val = int(val)
+
+            if inverted:
                 val = not val
 
-            if match in ('plugged', 'closed', 'online'):
-                val = bool(val)
 
             found.append(match)
             self.reqs[match] = val
@@ -206,12 +219,6 @@ class App:
         for key in list(self.reqs.keys()):
             if key not in found:
                 del self.reqs[key]
-
-    def add_reqs(self, reqs):
-        "Add user reqs (from commandline) to self.reqs) if not already present"
-        for req, value in reqs.items():
-            if value and req not in self.reqs:
-                self.reqs[req] = value
 
 
     def verify(self,):
@@ -311,7 +318,18 @@ class App:
             print('Freq: ', '*')
 
         print('Path: ', self.path)
-        print('Reqs: ', self.reqs)
+
+        # Print reqs
+        out = {}
+        for key, val in sorted(self.reqs.items()):
+            if key in DATA_REQS:
+                val = rfs(val) + '/s'
+            if key in TIME_REQS and val >= 300:
+                val = chronos.fmt_time(val)
+            out[key] = val
+        print('Reqs: ', out)
+
+
         print('in_window:', self.in_window())
         if self.next_run:
             print('Next_run:', chronos.local_time(self.next_run))
@@ -456,7 +474,7 @@ class App:
             aprint(*args, '::', self.name, )
 
 
-    def ready(self, tw, polling_rate):
+    def ready(self, tw, polling_rate, busy):
         "Is the process ready to be run?"
         now = time.time()
 
@@ -515,6 +533,16 @@ class App:
                     self.alert("Max number of reps reached:", count, 'since', chronos.local_time(start))
                     return False
 
+            # Machine requirements:
+            for name, func in [('cpu', busy.get_cpu), ('disk', busy.get_disk), ('network', busy.get_net)]:
+                if name in self.reqs:
+                    val = func()
+                    if val is None:
+                        # None value = thread not ready yet
+                        return False
+                    if val >= self.reqs[name]:
+                        self.alert(name, "usage too high to continue")
+                        return False
 
             # State requirements:
             if 'closed' in self.reqs and self.reqs.closed == shared.COMP.lid_open():

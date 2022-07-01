@@ -28,12 +28,9 @@ def quote(text):
     return q + text + q
 
 
-def get_volume():
-    cur_level = []
-    for line in srun('amixer -D pulse'):
-        if 'Playback' in line and '%' in line:
-            cur_level.append(int(re.split('[\\[\\]]', line)[1][:-1]))
-    return int(sum(cur_level) / len(cur_level))
+def set_volume(level=80):
+    "Set computer master volume"
+    srun("amixer -D pulse sset Master " + str(level) + "% on")
 
 
 def srun(*cmds, **kargs):
@@ -41,9 +38,12 @@ def srun(*cmds, **kargs):
     return quickrun(flatten([str(item).split() for item in cmds]), **kargs)
 
 
-def set_volume(level=80):
-    "Set computer master volume"
-    srun("amixer -D pulse sset Master " + str(level) + "% on")
+def get_volume():
+    cur_level = []
+    for line in srun('amixer -D pulse'):
+        if 'Playback' in line and '%' in line:
+            cur_level.append(int(re.split('[\\[\\]]', line)[1][:-1]))
+    return int(sum(cur_level) / len(cur_level))
 
 
 def play(filename, volume=80, player='', opts='', **kargs):
@@ -86,6 +86,76 @@ def bisect_small(lis, num):
         return end
 
 
+def is_num(num):
+    "Is the string a number?"
+    if str(num).strip().replace('.', '', 1).replace('e', '', 1).isdigit():
+        return True
+    return False
+
+
+class ConvertDataSize():
+    '''
+    Convert data size. Given a user input size like
+    "80%+10G -1M" = 80% of the blocksize + 10 gigabytes - 1 Megabyte
+    '''
+
+    def __init__(self, blocksize=1e9, binary_prefix=1000, rounding=0):
+        self.blocksize = blocksize                  # Device blocksize for multiplying by a percentage
+        self.binary_prefix = binary_prefix          # 1000 or 1024 byte kilobytes
+        self.rounding = rounding                    # Round to sector sizes
+
+    def _process(self, arg):
+        arg = arg.strip().upper().replace('B', '')
+        if not arg:
+            return 0
+
+        start = arg[0]
+        end = arg[-1]
+
+        if start == '-':
+            return self.blocksize - self._process(arg[1:])
+
+        if '+' in arg:
+            return sum(map(self._process, arg.split('+')))
+
+        if '-' in arg:
+            args = arg.split('-')
+            val = self._process(args.pop(0))
+            for a in args:
+                val -= self._process(a)
+                return val
+
+        if end in 'KMGTPEZY':
+            return self._process(arg[:-1]) * self.binary_prefix ** (' KMGTPEZY'.index(end))
+
+        if end == '%':
+            if arg.count('%') > 1:
+                raise ValueError("Extra % in arg:", arg)        # pylint: disable=W0715
+            arg = float(arg[:-1])
+            if not 0 <= arg <= 100:
+                print("Percentages must be between 0 and 100, not", str(arg) + '%')
+                return None
+            else:
+                return int(arg / 100 * self.blocksize)
+
+        if is_num(arg):
+            return float(arg)
+        else:
+            print("Could not understand arg:", arg)
+            return None
+
+    def __call__(self, arg):
+        "Pass string to convert"
+        val = self._process(arg)
+        if val is None:
+            return None
+        val = int(val)
+        if self.rounding:
+            return val // self.rounding * self.rounding
+        else:
+            return val
+
+
 def unique_filename(filename):
     "Given a filename, add a counter if needed to ensure it is unique"
     if not os.path.exists(filename):
@@ -97,52 +167,6 @@ def unique_filename(filename):
     while os.path.exists(filename + str(extra) + ext):
         extra += 1
     return filename + str(extra) + ext
-
-
-class DotDict(dict):
-    '''
-    Example:
-    m = dotdict({'first_name': 'Eduardo'}, last_name='Pool', age=24, sports=['Soccer'])
-
-    Modified from:
-    https://stackoverflow.com/questions/2352181/how-to-use-a-dot-to-access-members-of-dictionary
-    to set unlimited chained .variables like DotDict().tom.bob = 3
-    '''
-
-    def __init__(self, *args, **kwargs):
-        super(DotDict, self).__init__(*args, **kwargs)
-        for arg in args:
-            if isinstance(arg, dict):
-                for k, v in arg.items():
-                    self[k] = v
-
-        if kwargs:
-            for k, v in kwargs.items():
-                self[k] = v
-
-    def __getattr__(self, attr):
-        if attr in self:
-            return self.get(attr)
-        else:
-            self[attr] = DotDict()
-            return self[attr]
-
-    def __setattr__(self, key, value):
-        self.__setitem__(key, value)
-
-    def __contains__(self, key):
-        return bool(key in self.__dict__)
-
-    def __setitem__(self, key, value):
-        super(DotDict, self).__setitem__(key, value)
-        self.__dict__.update({key: value})
-
-    def __delattr__(self, item):
-        self.__delitem__(item)
-
-    def __delitem__(self, key):
-        super(DotDict, self).__delitem__(key)
-        del self.__dict__[key]
 
 
 def search_list(expr, the_list, get='list', func='match', ignorecase=True, searcher=None):
@@ -246,6 +270,75 @@ def safe_filename(filename, src="/ ", dest="-_", no_http=True, length=200,
             filename = filename.strip('/')
     filename = filename.translate(filename.maketrans(src, dest)).strip()
     return ''.join(c if c not in forbidden else replacement for c in filename.strip())[:length]
+
+
+def spawn(func, *args, daemon=True, delay=0, **kargs):
+    '''Spawn a function to run seperately and return the que
+    waits for delay seconds before running
+    Get the results with que.get()
+    daemon = running in background, will shutdown automatically when main thread exits
+    Check if the thread is still running with thread.is_alive()
+    print('func=', func, id(func))'''
+    # replaces fork_cmd, mcall
+
+    def worker():
+        if delay:
+            time.sleep(delay)
+        ret = func(*args, **kargs)
+        que.put(ret)
+
+    que = queue.Queue()
+    # print('args=', args)
+    thread = threading.Thread(target=worker)
+    thread.daemon = daemon
+    thread.start()
+    return que, thread
+
+
+class DotDict(dict):
+    '''
+    Example:
+    m = dotdict({'first_name': 'Eduardo'}, last_name='Pool', age=24, sports=['Soccer'])
+
+    Modified from:
+    https://stackoverflow.com/questions/2352181/how-to-use-a-dot-to-access-members-of-dictionary
+    to set unlimited chained .variables like DotDict().tom.bob = 3
+    '''
+
+    def __init__(self, *args, **kwargs):
+        super(DotDict, self).__init__(*args, **kwargs)
+        for arg in args:
+            if isinstance(arg, dict):
+                for k, v in arg.items():
+                    self[k] = v
+
+        if kwargs:
+            for k, v in kwargs.items():
+                self[k] = v
+
+    def __getattr__(self, attr):
+        if attr in self:
+            return self.get(attr)
+        else:
+            self[attr] = DotDict()
+            return self[attr]
+
+    def __setattr__(self, key, value):
+        self.__setitem__(key, value)
+
+    def __contains__(self, key):
+        return bool(key in self.__dict__)
+
+    def __setitem__(self, key, value):
+        super(DotDict, self).__setitem__(key, value)
+        self.__dict__.update({key: value})
+
+    def __delattr__(self, item):
+        self.__delitem__(item)
+
+    def __delitem__(self, key):
+        super(DotDict, self).__delitem__(key)
+        del self.__dict__[key]
 
 
 def error(*args, header='\nError:', err=RuntimeError, **kargs):
@@ -467,77 +560,6 @@ def read_val(file):
     return int(file.read())
 
 
-def spawn(func, *args, daemon=True, delay=0, **kargs):
-    '''Spawn a function to run seperately and return the que
-    waits for delay seconds before running
-    Get the results with que.get()
-    daemon = running in background, will shutdown automatically when main thread exits
-    Check if the thread is still running with thread.is_alive()
-    print('func=', func, id(func))'''
-    # replaces fork_cmd, mcall
-
-    def worker():
-        if delay:
-            time.sleep(delay)
-        ret = func(*args, **kargs)
-        que.put(ret)
-
-    que = queue.Queue()
-    # print('args=', args)
-    thread = threading.Thread(target=worker)
-    thread.daemon = daemon
-    thread.start()
-    return que, thread
-
-
-class _TmanObj():
-    "Used for ThreadManager"
-
-    def __init__(self, func, *args, delay=0, **kargs):
-        self.start = time.time()
-        self.que, self.thread = spawn(func, *args, delay=delay, **kargs)
-
-    def age(self):
-        return time.time() - self.start
-
-    def is_alive(self):
-        return self.thread.is_alive()
-
-
-class ThreadManager():
-    "Maintain a list of threads and when they were started, query() to see if done."
-
-    def __init__(self):
-        self.threads = dict()
-
-    def query(self, func, *args, delay=0, max_age=0, **kargs):
-        "Start thread if new, return status, que.get()"
-        serial = id(func)
-
-        obj = self.threads.get(serial, None)
-        if max_age and obj and obj.age() > max_age:
-            print("Thread aged out")
-            del obj
-            obj = None
-        if obj and obj.is_alive():
-            print("Can't get results now, we got quilting to do!")
-            return False, None
-        if obj:
-            del self.threads[serial]
-            return True, obj.que.get()
-
-        # print("Starting thread!")
-        obj = _TmanObj(func, *args, delay=delay, **kargs)
-        self.threads[serial] = obj
-        return False, None
-
-    def remove(self, func):
-        "Remove thread if in dict"
-        serial = id(func)
-        if serial in self.threads:
-            del self.threads[serial]
-
-
 class Eprinter:
     '''Drop in replace to print errors if verbose level higher than setup level
     To replace every print statement type: from common import eprint as print
@@ -719,7 +741,6 @@ def itercount(start=0, step=1):
 
 
 eprint = Eprinter(verbose=1).eprint     # pylint: disable=C0103
-tman = ThreadManager()  # pylint: disable=C0103
 
 '''
 &&&&%%%%%&@@@@&&&%%%%##%%%#%%&@@&&&&%%%%%%/%&&%%%%%%%%%%%&&&%%%%%&&&@@@@&%%%%%%%
@@ -761,5 +782,5 @@ tman = ThreadManager()  # pylint: disable=C0103
 Generated by https://github.com/SurpriseDog/Star-Wrangler
 a Python tool for picking only the required code from source files
 written by SurpriseDog at: https://github.com/SurpriseDog
-2022-06-27
+2022-06-30
 '''

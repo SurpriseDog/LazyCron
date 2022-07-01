@@ -113,6 +113,49 @@ def wait_until_not_busy(folder, threshold=11, wait=2, reps=8, delta=2, sleep=2):
         time.sleep(x * sleep)
 
 
+class Busy:
+    "Poll the system to see if system is busy, returns None if value not ready yet"
+    def __init__(self, expiration=100):
+        self.expiration = expiration        # How long to keep values before querying again
+        self.net = DotDict(que=None, thread=None, timestamp=0, value=None,)
+        self.disk = DotDict(que=None, thread=None, timestamp=0, value=None,)
+        self.cpu = DotDict(que=None, thread=None, timestamp=0, value=None,)
+
+    def get_net(self, *args, **kargs):
+        return self._query(self.net, get_network_usage, *args, **kargs)
+
+    def get_disk(self, *args, **kargs):
+        return self._query(self.disk, all_disk_usage, *args, **kargs)
+
+    def get_cpu(self, *args, **kargs):
+        return self._query(self.cpu, get_cpu_usage, *args, **kargs)
+
+
+    def _query(self, vals, cmd, *args, **kargs):
+        "Return a value if available, otherwise start a thread and return None while we wait"
+        now = time.time()
+        if now - vals.timestamp <= self.expiration:
+            # print("Found existing value", vals.value)
+            return vals.value
+        else:
+            if not vals.thread:
+                # Start a thread
+                # print("Spawning thread to check value")
+                vals.que, vals.thread = spawn(cmd, *args, **kargs)
+                return None
+            else:
+                # Check existing thread to see if it's done
+                if vals.thread.is_alive():
+                    # print("Thread still running")
+                    return None
+                else:
+                    vals.thread = None
+                    vals.value = vals.que.get()
+                    # print("Value ready:", vals.value)
+                    vals.timestamp = now
+                    return vals.value
+
+
 if __name__ == "__main__":
     check_install('iostat', msg='sudo apt-get install sysstat')
     wait_until_not_busy(list_get(sys.argv, 1, '/home'))

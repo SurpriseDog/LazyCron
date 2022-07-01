@@ -12,17 +12,18 @@ import shutil
 import traceback
 
 import shared
-import how_busy
+
 import scheduler
 
 from shared import aprint
 from timewatch import TimeWatch
-from sd.chronology import fmt_time, local_time
+from how_busy import Busy
+from sd.chronology import fmt_time, local_time, convert_user_time
 
 from sd.msgbox import msgbox
 from sd.columns import auto_cols
 from sd.easy_args import easy_parse
-from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, tman
+from sd.common import itercount, gohome, check_install, rfs, mkdir, warn
 
 
 def parse_args():
@@ -32,20 +33,22 @@ def parse_args():
     "Filename to read schedule from."
     ]
     args = [\
-    ['polling', 'polling_rate', float, 1],
+    ['polling', 'polling', str, '1'],
     "How often to check (minutes)",
-    ['idle', '', float, 0],
+    ['idle', '', str, '0'],
     "How long to wait before going to sleep (minutes) 0=Disable",
     ['verbose', '', int, 1],
     "What messages to print",
     ['testing', '', bool],
     "Do everything, but actually run the scripts.",
     ['logs', '', str, '/tmp/LazyCron_logs'],
-    ['nice', '', int, 10],
-    "Start processes with given Unix nice level\n(Higher values are nicer to other processes)",
-    "Logging directory",
+    ['reqs', '', str],
+    '''
+    Apply requirements to all processes (will not override existing reqs)
+    Example: --reqs 'nice 10,  cpu 10'
+    ''',
     ['skip', '', int, 0],
-    "Don't run apps on startup, wait a bit.",
+    "Don't run apps on startup, wait <x> minutes",
     ['stagger', '', float, 0],
     "Wait x minutes between starting programs.",
     ]
@@ -54,32 +57,44 @@ def parse_args():
                       usage='<schedule file>, options...',
                       description='Monitor the system for idle states and run scripts at the best time.')
 
+
+    cut = lambda x: convert_user_time(x, default='minutes')
+    args.idle = cut(args.idle)
+    args.polling = cut(args.polling)
+
     # Defaults if no value given
     if args.skip is None:
-        args.skip = 1
+        args.skip = 8
     if args.verbose is None:
         args.verbose = 2
     return args
 
 
-def is_busy(min_net=10e3, min_disk=1e6):
-    '''
-    Return True if disk or network usage above defaults
-    min_net  = Network usage
-    min_disk = Disk usage
-    '''
+def is_busy(busy,):
+    "Return True if disk or network usage above defaults"
     def fmt(num):
         return rfs(num)+'/s'
 
-    net_usage = how_busy.get_network_usage(5, 4)
-    if net_usage >= min_net:
+    net_usage = busy.get_net()
+    if net_usage is None:
+        # None = Value not ready yet
+        return True
+    if net_usage >= shared.LOW_NET:
         aprint("Busy: Network Usage:", fmt(net_usage))
         return True
 
-    disk_usage = how_busy.all_disk_usage(5, 4)
-    if disk_usage >= min_disk:
+    disk_usage = busy.get_disk()
+    if disk_usage is None:
+        return True
+    if disk_usage >= shared.LOW_DISK:
         aprint("Busy: Disk usage:", fmt(disk_usage))
         return True
+
+    cpu_usage = busy.get_cpu()
+    if cpu_usage is None:
+        return True
+    if cpu_usage >= shared.LOW_CPU:
+        aprint("Busy: Cpu Usage:", fmt(cpu_usage))
 
     aprint("Not Busy - Network Usage:", fmt(net_usage), "Disk usage:", fmt(disk_usage))
     return False
@@ -177,6 +192,19 @@ def read_schedule(schedule_apps, alert=warn):
 
             # Otherwise try to create a new one
             else:
+                # Slip in command line reqs:
+                if UA.reqs:
+                    reqs = line['reqs'].strip()
+                    if reqs == '*':
+                        reqs = UA.reqs.strip()
+                    else:
+                        if reqs and not reqs.endswith(','):
+                            reqs += ', '
+                        reqs += UA.reqs.strip()
+                        print(reqs)
+                        line['reqs'] = reqs
+
+                # Try to process each line
                 try:
                     proc = scheduler.App(line)
                 except Exception as e:      # Bare exception to cover any processing errors
@@ -184,7 +212,7 @@ def read_schedule(schedule_apps, alert=warn):
                     traceback.print_exc()
                     print(e, '\n\n\n')
                     continue
-                proc.add_reqs({'skip': UA.skip, 'nice' : UA.nice})
+                    # proc.add_reqs(UA.reqs)
                 proc.print()
                 if proc.verify():
                     new_sched.append(proc)
@@ -198,13 +226,14 @@ def read_schedule(schedule_apps, alert=warn):
 
 def main(verbose=1):
     polling_rate = 0                        # Time to rest at the end of every loop
-    idle_sleep = UA.idle * 60               # Go to sleep after this long plugged in
-
+    idle_sleep = UA.idle                    # Go to sleep after this long plugged in
     tw = TimeWatch(verbose=verbose)
     last_schedule_read = 0                  # last time the schedule file was read
+    start_time = time.time()                # Start time
     last_run = 0                            # Time when the last program was started
     schedule_apps = []                      # Apps found in schedule.txt
     cur_day = time.localtime().tm_yday      # Used for checking for new day
+    busy = Busy(expiration=max(UA.polling * 2.5, 60))
 
 
     for counter in itercount():
@@ -213,7 +242,7 @@ def main(verbose=1):
         # Loop again to avoid edge case where the machine wakes up and is immediately put back to sleep
         while missing > 2 and missing > polling_rate / 10:
             missing = tw.sleep(polling_rate)
-        polling_rate = UA.polling_rate * 60
+        polling_rate = UA.polling
 
         # Check for a new day
         if time.localtime().tm_yday != cur_day:
@@ -241,27 +270,23 @@ def main(verbose=1):
         for proc in schedule_apps:
             if UA.stagger and (time.time() - last_run) / 60 < UA.stagger:
                 break
-            if proc.ready(tw, polling_rate):
-                proc.run(testing_mode=UA.testing)
-                last_run = time.time()
+            if proc.ready(tw, polling_rate, busy):
+                if UA.skip and time.time() - start_time < UA.skip * 60:
+                    proc.run(testing_mode=True)
+                else:
+                    proc.run(testing_mode=UA.testing)
+                    last_run = time.time()
 
 
         # Put the computer to sleep after checking to make sure nothing is going on.
         if idle_sleep and tw.idle > idle_sleep:
             if shared.COMP.plugged_in():
                 # Plugged mode waits for idle system.
-                ready, results = tman.query(is_busy, max_age=polling_rate * 1.5)
-                if ready and not results:
+                if is_busy(busy):
                     print("Going to sleep\n")
                     if not UA.testing:
                         tw.sleepy_time()
                         polling_rate = 2
-            else:
-                # Battery Mode doesn't wait for idle system.
-                print("Idle and unplugged. Going to sleep.\n")
-                if not UA.testing:
-                    tw.sleepy_time()
-                    polling_rate = 2
 
 
 if __name__ == "__main__":

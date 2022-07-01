@@ -17,6 +17,7 @@
 9-11pm               *               *                reps 2                        # reps
 *                    *				 Thursday-Mon     reps 1						# days
 *                    0				 *			      start							# start
+*                    *				 *			      cpu							# cpu
 
 # 2 seconds:
 # reset;./LazyCron.py test.schedule.txt --polling 0.0333333 -v 2

@@ -49,7 +49,6 @@ Examples: m-f, every 2nd Thursday
 
 #### "Requirements" is a comma separated list of additional requirements needed for the script to run. As with Time, Frequency, and Date, most natural language inputs are allowed. Available ones are as follows:
 
-```
 
   *    idle         = Time the computer has been idle for.
   *    busy         = Computer must have been in use within time specified.
@@ -65,9 +64,12 @@ Examples: m-f, every 2nd Thursday
   *    reps         = Only run so many times per day or per window of time.
 
   *    nice         = Start script with unix nice value. Higher values are nicer to other processes.
+  *    disk         = Maximum current disk usage to start process, expressed in KB/s
+  *    cpu          = Maximum current cpu usage to start process, expressed as a percentage of combined cpu power
+  *    network      = Maximum current network usage to start process, expressed as KB/s
+
   *    random       = Script will run randomly. Example: random 8h will (on average) run every 8 hours. Some days it might run 5+ times, other days not at all. That's [how randomness works.](https://math.stackexchange.com/q/209987/693067)
 
-```
 
 Fun fact: You can combine "busy" and "idle" to run a script when the computer has been used recently, but is now idle:
 
