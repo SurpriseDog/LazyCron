@@ -12,15 +12,10 @@
 
 
 #*                   *               *                online                        # online only
-*                    10s             *                *                             # Every 10
 12am to 11:59pm      0               *                max 2                         # max
 9-11pm               *               *                reps 2                        # reps
 *                    *				 Thursday-Mon     reps 1						# days
 *                    0				 *			      start							# start
 *                    *				 *			      cpu							# cpu
-
-# 2 seconds:
-# reset;./LazyCron.py test.schedule.txt --polling 0.0333333 -v 2
-
-# 10 seconds:
-# reset;./LazyCron.py test.schedule.txt --polling 0.1666666 -v 2
+*                    4s elapsed      *                *                             # Every elapsed
+# reset;./LazyCron.py test.schedule.txt -v --polling 2s

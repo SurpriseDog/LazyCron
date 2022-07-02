@@ -229,7 +229,6 @@ def main(verbose=1):
     idle_sleep = UA.idle                    # Go to sleep after this long plugged in
     tw = TimeWatch(verbose=verbose)
     last_schedule_read = 0                  # last time the schedule file was read
-    start_time = time.time()                # Start time
     last_run = 0                            # Time when the last program was started
     schedule_apps = []                      # Apps found in schedule.txt
     cur_day = time.localtime().tm_yday      # Used for checking for new day
@@ -271,7 +270,7 @@ def main(verbose=1):
             if UA.stagger and (time.time() - last_run) / 60 < UA.stagger:
                 break
             if proc.ready(tw, polling_rate, busy):
-                if UA.skip and time.time() - start_time < UA.skip * 60:
+                if UA.skip and time.time() - shared.START_TIME < UA.skip * 60:
                     proc.run(testing_mode=True)
                 else:
                     proc.run(testing_mode=UA.testing)

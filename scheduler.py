@@ -142,11 +142,13 @@ class App:
         self.date_window = []       # Allowed days
         self.start = 0              # Start time in UTC
         self.stop = 0               # End time in UTC
+
         self.freq = None            # Frequency. None = Run once a day
         self.history = []           # When the app last ran
-
-        self.last_run = 0           # Last time the script was run
         self.next_run = 0           # Next time the script can run
+
+        self.elapsed_freq = 0       # Run every elapsed time
+        self.elapsed_next = 0       # Next time allowed to run by elapsed_freq
 
         self.args = args            # Preserve initial setup args
         self.path = args['path']    # Path to script
@@ -259,6 +261,21 @@ class App:
             end = days[1]
         self.date_window.append((start, end, cycles))
 
+    def process_freq(self, args):
+        "Process frequency and elapsed frequency field"
+        freq_trigger = False
+        for arg in args:
+            if 'elapsed' in arg:
+                arg = arg.replace('elapsed', '')
+                self.elapsed_freq = chronos.convert_user_time(arg, default='minutes')
+                self.elapsed_next = self.elapsed_freq
+            else:
+                freq_trigger = True
+                self.freq = chronos.convert_user_time(arg, default='minutes')
+
+        if self.elapsed_freq and not freq_trigger:
+            self.freq = 0
+
 
     def process_args(self):
         args = self.args
@@ -277,14 +294,14 @@ class App:
                 values = values.split(',')
                 if key == 'reqs':
                     self.process_reqs(values)
+                elif key == 'frequency':
+                    self.process_freq(values)
                 else:
                     for val in values:
                         if key == 'time':
                             self.process_time(val)
                         if key == 'date':
                             self.process_date(val)
-                        if key == 'frequency':
-                            self.freq = chronos.convert_user_time(val, default='minutes')
 
 
     def __str__(self):
@@ -316,7 +333,6 @@ class App:
             print('Freq: ', chronos.fmt_time(self.freq))
         elif self.freq is None:
             print('Freq: ', '*')
-
         print('Path: ', self.path)
 
         # Print reqs
@@ -333,6 +349,9 @@ class App:
         print('in_window:', self.in_window())
         if self.next_run:
             print('Next_run:', chronos.local_time(self.next_run))
+        if self.elapsed_freq:
+            print('Elapsed freq:', self.elapsed_freq)
+            print('Next Elapsed:', self.elapsed_next)
 
 
     def running(self):
@@ -441,14 +460,6 @@ class App:
         if now < self.start:
             return False
         if self.start <= now <= self.stop:
-            '''
-            next_run now set by run command
-            if self.freq is not None:           # The *
-                if self.start <= self.last_run <= self.stop:
-                    # aprint("Already ran in this window")
-                    return False
-            return True
-            '''
             return True
         else:
             # Recalculate
@@ -485,12 +496,19 @@ class App:
 
         if self.window or self.date_window:
             if not self.in_window():
-                self.alert("Outside of window starting at", chronos.local_time(self.start))
+                self.alert("Outside of time window")
                 return False
 
         if self.next_run and now < self.next_run:
             self.alert("Next run at", chronos.local_time(self.next_run))
             return False
+
+        if self.elapsed_freq:
+            if tw.elapsed < self.elapsed_next:
+                self.alert("Elapsed freq not reached")
+                return False
+            else:
+                self.elapsed_next = tw.elapsed + self.elapsed_freq
 
         # Check App requirements.
         # Not a match statement. No increase in speed and breaks compatability with python versions < 3.10
@@ -561,9 +579,7 @@ class App:
     def run(self, testing_mode):
         "Run the process in seperate thread while writing output to log."
         now = time.time()
-
         self.history.append(now)
-        self.last_run = now
 
         # If no frequency was specifed, then it will run every day. Note! 0 != None
         if self.freq is None:
