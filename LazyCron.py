@@ -271,9 +271,9 @@ def main(verbose=1):
                 break
             if proc.ready(tw, polling_rate, busy):
                 if UA.skip and time.time() - shared.START_TIME < UA.skip * 60:
-                    proc.run(testing_mode=True)
+                    proc.run(tw, testing_mode=True)
                 else:
-                    proc.run(testing_mode=UA.testing)
+                    proc.run(tw, testing_mode=UA.testing)
                     last_run = time.time()
 
 

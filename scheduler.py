@@ -22,6 +22,131 @@ from sd.common import safe_filename, error, check_internet, spawn, crop, quickru
 from sd.common import search_list, DotDict, warn, unique_filename, ConvertDataSize, rfs
 
 
+class Reqs:
+    "User requirements field"
+
+    def __init__(self,):
+        # Requirements measured in units of time
+        self.time_reqs = ('idle', 'busy', 'random', 'elapsed')
+
+        # Requirements measured in KB, MB...
+        self.data_reqs = ('disk', 'network')
+
+        # Requirements to run processes, These are default values if no argument given by user
+        self.reqs = DotDict(plugged=True,
+                            unplugged=True,
+                            idle=10 * 60,
+                            busy=10 * 60,
+                            closed=True,
+                            open=True,
+                            random=86400,
+                            start=1,
+                            online=True,
+                            elapsed=10 * 60,
+                            skip=1,
+                            max=0,
+                            reps=1,
+                            nice=5,
+                            disk=shared.LOW_DISK,
+                            network=shared.LOW_NET,
+                            cpu=shared.LOW_CPU,
+                            )
+
+        # Aliases to self.reqs
+        self.aliases = dict(plug='plugged',
+                            unplug='unplugged',
+                            lazy='idle',
+                            rand='random',
+                            startup='start',
+                            shut='closed',
+                            skipped='skip',
+                            internet='online',
+                            used='elapsed',
+                            usage='elapsed',
+                            maximum='max',
+                            disc='disk',
+                            repititions='reps',
+                            repetitions='reps',
+                            )
+
+        # Swap plugged with unplugged and so on...
+        self.inversions = dict(unplugged='plugged', open='closed')
+
+        # Check for errors in reqs:
+        # No repeats between aliases and real reqs
+        assert not set(self.aliases.keys()) & set(self.reqs.keys())
+        # All values in aliases are legit reqs
+        assert all([val in self.reqs.keys() for val in self.aliases.values()])
+
+    def __call__(self):
+        return self.reqs
+
+    def print(self,):
+        # Print reqs
+        out = {}
+        for key, val in sorted(self.reqs.items()):
+            if key in self.data_reqs:
+                val = rfs(val) + '/s'
+            if key in self.time_reqs and val >= 300:
+                val = chronos.fmt_time(val)
+            out[key] = val
+        print('Reqs: ', out)
+
+    def process_reqs(self, args):
+        "Process requirements field"
+        # print("processing requirements field:", args)
+        found = []
+
+        for arg in args:
+            split = arg.lower().strip().split()
+            arg = split[0]
+            val = (' '.join(split[1:])).strip()
+            match = search_list(arg, self.reqs.keys(), get='first')
+            if not match:
+                match = search_list(arg, self.aliases.keys(), get='only')
+                if match:
+                    match = self.aliases[match]
+            if not match:
+                error("Can't find requirement:", arg)
+
+            # Get default value if not supplied
+            if not val:
+                val = self.reqs[match]
+            # print("Processing req:", match, repr(val))
+
+
+            # deal with plugged/unplugged closed/open...
+            if match in self.inversions:
+                match = self.inversions[match]
+                inverted = True
+            else:
+                inverted = False
+
+            # Non numeric conversions
+            if match in self.time_reqs:
+                val = chronos.convert_user_time(val, default='minutes')
+            elif match in ('plugged', 'closed', 'online'):
+                val = bool(val)
+            elif match in self.data_reqs:
+                val = re.sub('second[s]*', 's', val)
+                val = re.sub('[/\\\\]*[s]$', '', val)
+                val = ConvertDataSize()(val)
+            else:
+                val = int(val)
+
+            if inverted:
+                val = not val
+
+
+            found.append(match)
+            self.reqs[match] = val
+
+        # Delete reqs that were not specified by user
+        for key in list(self.reqs.keys()):
+            if key not in found:
+                del self.reqs[key]
+
+
 def get_day(day, cycle, today=None):
     "Given a day of the week/month/year, return the next occurence"
     if not today:
@@ -88,51 +213,6 @@ def run_proc(cmd, log, nice=None):
         quickrun('sd/msgbox.py', ' '.join((crop(cmd), "returned code", str(code))))
 
 
-TIME_REQS = ('idle', 'busy', 'random', 'elapsed')
-DATA_REQS = ('disk', 'network')
-
-def get_reqs():
-    "Requirements to run processes"
-    # These are default values if no argument given by user
-    reqs = DotDict(plugged=True,
-                   unplugged=True,
-                   idle=10 * 60,
-                   busy=10 * 60,
-                   closed=True,
-                   open=True,
-                   random=86400,
-                   start=1,
-                   online=True,
-                   elapsed=10 * 60,
-                   skip=1,
-                   max=0,
-                   reps=1,
-                   nice=5,
-                   disk=shared.LOW_DISK,
-                   network=shared.LOW_NET,
-                   cpu=shared.LOW_CPU,
-                  )
-
-    aliases = dict(plug='plugged',
-                   unplug='unplugged',
-                   lazy='idle',
-                   rand='random',
-                   startup='start',
-                   shut='closed',
-                   skipped='skip',
-                   internet='online',
-                   used='elapsed',
-                   usage='elapsed',
-                   maximum='max',
-                   disc='disk',
-                   repititions='reps',
-                   repetitions='reps',
-                   )
-    assert not set(aliases.keys()) & set(reqs.keys())             # No repeats between aliases and real reqs
-    assert all([val in reqs.keys() for val in aliases.values()])  # All values in aliases are legit reqs
-    return reqs, aliases
-
-
 class App:
     "Spawn processes during windows of time when certain conditions are met"
 
@@ -161,66 +241,9 @@ class App:
         else:
             self.name = name[0].rstrip(',')
 
-        self.reqs, self.aliases = get_reqs()        # Requirements and aliases to requirements
+        self.reqs = Reqs()
         self.process_args()                         # Process data lines
         self.calc_window()
-
-
-    def process_reqs(self, args):
-        "Process requirements field"
-        # print("processing requirements field:", args)
-        found = []
-
-        inversions = dict(unplugged='plugged', open='closed')
-
-        for arg in args:
-            split = arg.lower().strip().split()
-            arg = split[0]
-            val = (' '.join(split[1:])).strip()
-            match = search_list(arg, self.reqs.keys(), get='first')
-            if not match:
-                match = search_list(arg, self.aliases.keys(), get='only')
-                if match:
-                    match = self.aliases[match]
-            if not match:
-                error("Can't find requirement:", arg)
-
-            # Get default value if not supplied
-            if not val:
-                val = self.reqs[match]
-            # print("Processing req:", match, repr(val))
-
-
-            # deal with plugged/unplugged closed/open...
-            if match in inversions:
-                match = inversions[match]
-                inverted = True
-            else:
-                inverted = False
-
-            # Non numeric conversions
-            if match in TIME_REQS:
-                val = chronos.convert_user_time(val, default='minutes')
-            elif match in ('plugged', 'closed', 'online'):
-                val = bool(val)
-            elif match in DATA_REQS:
-                val = re.sub('second[s]*', 's', val)
-                val = re.sub('[/\\\\]*[s]$', '', val)
-                val = ConvertDataSize()(val)
-            else:
-                val = int(val)
-
-            if inverted:
-                val = not val
-
-
-            found.append(match)
-            self.reqs[match] = val
-
-        # Delete reqs that were not specified by user
-        for key in list(self.reqs.keys()):
-            if key not in found:
-                del self.reqs[key]
 
 
     def verify(self,):
@@ -285,7 +308,7 @@ class App:
             # Handle star values
             if values == '*':
                 if key == 'reqs':
-                    self.reqs = DotDict()
+                    self.reqs.reqs = DotDict()
                 elif key == 'time':
                     self.window = [[0, 86400]]
                 continue
@@ -293,7 +316,7 @@ class App:
             else:
                 values = values.split(',')
                 if key == 'reqs':
-                    self.process_reqs(values)
+                    self.reqs.process_reqs(values)
                 elif key == 'frequency':
                     self.process_freq(values)
                 else:
@@ -335,23 +358,14 @@ class App:
             print('Freq: ', '*')
         print('Path: ', self.path)
 
-        # Print reqs
-        out = {}
-        for key, val in sorted(self.reqs.items()):
-            if key in DATA_REQS:
-                val = rfs(val) + '/s'
-            if key in TIME_REQS and val >= 300:
-                val = chronos.fmt_time(val)
-            out[key] = val
-        print('Reqs: ', out)
+        self.reqs.print()
 
-
-        print('in_window:', self.in_window())
+        print('In Window:', self.in_window())
         if self.next_run:
             print('Next_run:', chronos.local_time(self.next_run))
         if self.elapsed_freq:
-            print('Elapsed freq:', self.elapsed_freq)
-            print('Next Elapsed:', self.elapsed_next)
+            print('Elapsed freq:', chronos.fmt_time(self.elapsed_freq))
+            print('Next Elapsed:', chronos.fmt_time(self.elapsed_next))
 
 
     def running(self):
@@ -507,76 +521,77 @@ class App:
             if tw.elapsed < self.elapsed_next:
                 self.alert("Elapsed freq not reached")
                 return False
-            else:
-                self.elapsed_next = tw.elapsed + self.elapsed_freq
+
 
         # Check App requirements.
         # Not a match statement. No increase in speed and breaks compatability with python versions < 3.10
         # Future maybe put if verbose > ? before each alert statement for optimization, but probably not needed
-        if self.reqs:
+        reqs = self.reqs()
+        if reqs:
 
             # Usage requirements:
-            if 'idle' in self.reqs:
-                if tw.idle < self.reqs.idle or get_idle() < self.reqs.idle:
+            if 'idle' in reqs:
+                if tw.idle < reqs.idle or get_idle() < reqs.idle:
                     self.alert("Idle time not reached")
                     return False
-            if 'busy' in self.reqs and tw.idle > self.reqs.busy:
-                self.alert("Idle for too long:", tw.idle, '>', self.reqs.busy)
+            if 'busy' in reqs and tw.idle > reqs.busy:
+                self.alert("Idle for too long:", tw.idle, '>', reqs.busy)
                 return False
-            if 'random' in self.reqs and random.random() > polling_rate / self.reqs.random:
+            if 'random' in reqs and random.random() > polling_rate / reqs.random:
                 # Random value not reached
-                self.alert("Random value not reached: 1 in", int(1 / (polling_rate / self.reqs.random)))
+                self.alert("Random value not reached: 1 in", int(1 / (polling_rate / reqs.random)))
                 return False
-            if 'elapsed' in self.reqs and tw.today_elapsed < self.reqs.elapsed:
-                self.alert("Elapsed not reached", tw.today_elapsed, '<', self.reqs.elapsed)
+            if 'elapsed' in reqs and tw.today_elapsed < reqs.elapsed:
+                self.alert("Elapsed not reached", tw.today_elapsed, '<', reqs.elapsed)
                 return False
 
             # History requirements:
-            if 'start' in self.reqs and len(self.history) >= self.reqs.start:
+            if 'start' in reqs and len(self.history) >= reqs.start:
                 return False
-            if 'max' in self.reqs and len(self.history) >= self.reqs.max:
+            if 'max' in reqs and len(self.history) >= reqs.max:
                 self.alert("Max number of times reached")
                 return False
-            if 'reps' in self.reqs:
+            if 'reps' in reqs:
 
                 # Start time if in window, otherwise midnight:
                 start = self.start if self.start else now - chronos.seconds_since_midnight()
                 count = len(self.history) - bisect.bisect_left(self.history, start)
 
                 # Fixed bug where skipped runs counted towards reps
-                if 'skip' in self.reqs:
-                    count -= self.reqs.skip
+                if 'skip' in reqs:
+                    count -= reqs.skip
 
-                if count >= self.reqs.reps:
+                if count >= reqs.reps:
                     self.alert("Max number of reps reached:", count, 'since', chronos.local_time(start))
                     return False
 
             # Machine requirements:
             for name, func in [('cpu', busy.get_cpu), ('disk', busy.get_disk), ('network', busy.get_net)]:
-                if name in self.reqs:
+                if name in reqs:
                     val = func()
                     if val is None:
                         # None value = thread not ready yet
                         return False
-                    if val >= self.reqs[name]:
+                    if val >= reqs[name]:
                         self.alert(name, "usage too high to continue")
                         return False
 
             # State requirements:
-            if 'closed' in self.reqs and self.reqs.closed == shared.COMP.lid_open():
+            # Keep last to avoid unnecessary checks
+            if 'closed' in reqs and reqs.closed == shared.COMP.lid_open():
                 self.alert("Wrong lid state")
                 return False
-            if 'plugged' in self.reqs and self.reqs.plugged != shared.COMP.plugged_in():
+            if 'plugged' in reqs and reqs.plugged != shared.COMP.plugged_in():
                 self.alert("Wrong plug state")
                 return False
-            if 'online' in self.reqs and not check_internet():
+            if 'online' in reqs and not check_internet():
                 self.alert("Not Online")
                 return False
 
         return True
 
 
-    def run(self, testing_mode):
+    def run(self, tw, testing_mode):
         "Run the process in seperate thread while writing output to log."
         now = time.time()
         self.history.append(now)
@@ -588,11 +603,14 @@ class App:
         elif self.freq:
             # Otherwise add freq
             self.next_run = now + self.freq
+        if self.elapsed_freq:
+            self.elapsed_next = tw.elapsed + self.elapsed_freq
 
 
         # Must be in run to trigger self.next_run
-        if 'skip' in self.reqs and len(self.history) <= self.reqs.skip:
-            self.alert("Skip", len(self.history), 'of', self.reqs.skip, v=2)
+        reqs = self.reqs()
+        if 'skip' in reqs and len(self.history) <= reqs.skip:
+            self.alert("Skip", len(self.history), 'of', reqs.skip, v=2)
             return
 
         if self.path.lstrip().startswith('#'):
@@ -606,7 +624,7 @@ class App:
                 msgbox(msg)
                 self.thread = None
             else:
-                nice = 5 if 'nice' not in self.reqs else self.reqs.nice
+                nice = 5 if 'nice' not in reqs else reqs.nice
                 filename = safe_filename(self.name + '.' + str(int(now)))
                 log_file = os.path.abspath(os.path.join(shared.LOG_DIR, filename))
                 _, self.thread = spawn(run_proc, self.path, log=log_file, nice=nice)
