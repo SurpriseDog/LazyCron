@@ -72,6 +72,10 @@ class Reqs:
         # Swap plugged with unplugged and so on...
         self.inversions = dict(unplugged='plugged', open='closed')
 
+        # Needed programs to use named reqs
+        self.needed = dict(cpu='mpstat', network='sar', disk='iostat')
+        assert all([key in self.reqs for key in self.needed])
+
         # Check for errors in reqs:
         # No repeats between aliases and real reqs
         assert not set(self.aliases.keys()) & set(self.reqs.keys())
@@ -92,6 +96,18 @@ class Reqs:
             out[key] = val
         print('Reqs: ', out)
 
+    def req_okay(self, req):
+        "Check that the req is okay to use"
+        def check(program):
+            if not shutil.which(program):
+                warn("Install", program, "to use the", req, "req")
+                return False
+            return True
+
+        if req in self.needed:
+            return check(self.needed[req])
+        return True
+
     def process_reqs(self, args):
         "Process requirements field"
         # print("processing requirements field:", args)
@@ -108,6 +124,8 @@ class Reqs:
                     match = self.aliases[match]
             if not match:
                 error("Can't find requirement:", arg)
+            if not self.req_okay(match):
+                continue
 
             # Get default value if not supplied
             if not val:
