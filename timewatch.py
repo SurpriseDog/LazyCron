@@ -3,7 +3,7 @@
 import sys
 import time
 import subprocess
-from sd.common import check_install, warn
+from sd.common import check_install, warn, spawn
 from sd.chronology import local_time, fmt_time, msleep
 
 import shared
@@ -29,7 +29,6 @@ def get_idle():
         return 0
 
 
-
 class TimeWatch:
     "Keep track of idle time, even when computer sleeps"
 
@@ -39,7 +38,6 @@ class TimeWatch:
         self.increase = 0                       # Increase in elapsed from last call
         self.today_elapsed = 0                  # Elapsed just for today
         self.verbose = verbose
-
 
     def reset(self):
         "Reset counters on new day"
@@ -51,6 +49,7 @@ class TimeWatch:
         "Sleep for seconds and track missing time"
         if seconds <= 0:
             return 0
+
         start = time.time()
         missing = msleep(seconds)
         end = time.time()

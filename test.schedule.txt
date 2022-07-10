@@ -18,4 +18,4 @@
 *                    0				 *			      start							# start
 *                    *				 *			      cpu							# cpu
 *                    4s elapsed      *                *                             # Every elapsed
-# reset;./LazyCron.py test.schedule.txt -v --polling 2s
+# reset;./LazyCron.py test.schedule.txt -v --polling 2s --debug

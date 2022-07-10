@@ -12,7 +12,6 @@ import shutil
 import traceback
 
 import shared
-
 import scheduler
 
 from shared import aprint
@@ -20,19 +19,27 @@ from timewatch import TimeWatch
 from how_busy import Busy
 from sd.chronology import fmt_time, local_time, convert_user_time
 
+import sd.easy_args
 from sd.msgbox import msgbox
 from sd.columns import auto_cols
-from sd.easy_args import easy_parse
-from sd.common import itercount, gohome, check_install, rfs, mkdir, warn
+from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, spawn, search_list, DotDict
 
 
 def parse_args():
     "Parse arguments"
+
+    am = sd.easy_args.ArgMaster(usage='<schedule file>, options...',
+                             description='Monitor the system for idle states and run scripts at the best time.',
+                             )
+
+
     positionals = [\
     ["schedule", '', str, 'schedule.txt'],
     "Filename to read schedule from."
     ]
-    args = [\
+    am.update(positionals, 'Positional Arguments:', positionals=True)
+
+    basic = [\
     ['polling', 'polling', str, '1'],
     "How often to check (minutes)",
     ['idle', '', str, '0'],
@@ -52,11 +59,14 @@ def parse_args():
     ['stagger', '', float, 0],
     "Wait x minutes between starting programs.",
     ]
-    args = easy_parse(args,
-                      positionals,
-                      usage='<schedule file>, options...',
-                      description='Monitor the system for idle states and run scripts at the best time.')
+    am.update(basic, 'Optional Arguments:')
 
+    hidden = [\
+    ['debug', '', bool],
+    ]
+    am.update(hidden, "Used for testing purposes:", hidden=True)
+
+    args = am.parse()
 
     cut = lambda x: convert_user_time(x, default='minutes')
     args.idle = cut(args.idle)
@@ -67,7 +77,7 @@ def parse_args():
         args.skip = 8
     if args.verbose is None:
         args.verbose = 2
-    return args
+    return DotDict(vars(args))
 
 
 def is_busy(busy,):
@@ -224,6 +234,7 @@ def read_schedule(schedule_apps, alert=warn):
         return new_sched
 
 
+
 def main(verbose=1):
     polling_rate = 0                        # Time to rest at the end of every loop
     idle_sleep = UA.idle                    # Go to sleep after this long plugged in
@@ -234,6 +245,71 @@ def main(verbose=1):
     cur_day = time.localtime().tm_yday      # Used for checking for new day
     busy = Busy(expiration=max(UA.polling * 2.5, 60))
 
+
+    def print_procs():
+        for proc in schedule_apps:
+            proc.print()
+            print('\n')
+
+    def debug_status():
+        "Read user input and print status while running"
+        while True:
+            cmd = input().lower().strip()
+            if not cmd:
+                continue
+            first = cmd.split()[0]
+            if cmd == 'time':
+                tw.status()
+
+            elif cmd == 'all':
+                print_procs()
+
+            elif cmd == 'vars':
+                for app in schedule_apps:
+                    print(app)
+
+            elif first == 'app':
+                # Print the app given after app
+                arg = re.sub('^app ', '', cmd)
+                apps = {app.name:app for app in schedule_apps}
+                match = search_list(arg, apps, get='all')
+                if len(match) == 1:
+                    match[0].print()
+                else:
+                    print('Found', len(match), 'matches for', arg)
+
+            elif cmd == 'args':
+                print(UA)
+
+            elif first in UA:
+                try:
+                    val = cmd.split()[1]
+                except IndexError:
+                    continue
+                try:
+                    val = int(val)
+                except ValueError:
+                    continue
+                UA[first] = int(val)
+                print(UA)
+
+            elif cmd.startswith('verbose '):
+                arg = re.sub('^verbose ', '', cmd)
+                try:
+                    val = int(arg)
+                except ValueError:
+                    continue
+                shared.VERBOSE = val
+                for app in schedule_apps:
+                    app.verbose = val
+
+            else:
+                print('???')
+            print()
+
+
+    if UA.debug:
+        spawn(debug_status)
 
     for counter in itercount():
         # Sleep at the end of every loop
@@ -250,9 +326,7 @@ def main(verbose=1):
             print(time.strftime('\n\nToday is %A, %-m-%d'), '\n' + '#' * 80)
             if verbose >= 2:
                 print("Elapsed", fmt_time(tw.elapsed))
-                for proc in schedule_apps:
-                    proc.print()
-                    print('\n')
+                print_procs()
 
 
         # Read the schedule file if it's been updated
@@ -290,6 +364,7 @@ def main(verbose=1):
 
 if __name__ == "__main__":
     UA = parse_args()
+    print(UA)
     if UA.idle:
         check_install('iostat', 'sar',
                       msg='''sudo apt install sysstat sar

@@ -253,7 +253,8 @@ class App:
         self.thread = None          # Thread starting running process
         self.verbose = shared.VERBOSE
 
-        name = list(indenter(os.path.basename(self.path), wrap=64))
+        name = os.path.basename(self.path.lstrip('#').strip())
+        name = list(indenter(name, wrap=64))
         if len(name) > 1:
             self.name = name[0].rstrip(',') + '...'
         else:
