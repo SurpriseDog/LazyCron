@@ -11,15 +11,20 @@ from sd.columns import auto_cols
 from sd.common import undent
 
 
-def easy_parse(optionals_list, pos_list=None, **kargs):
+def easy_parse(options, positionals=None, hidden=None, **kargs):
     '''
     Simpler way to pass arguments to ArgMaster class.
     All kargs are passed to ArgMaster. See the actual implementation for details.
     '''
     am = ArgMaster(**kargs)
-    if pos_list:
-        am.update(pos_list, title="Positional Arguments", positionals=True)
-    am.update(optionals_list, title="Optional Arguments")
+    am.update(options, title="Optional Arguments")
+
+    if positionals:
+        am.update(positionals, title="Positional Arguments", positionals=True)
+
+    if hidden:
+        am.update(hidden, "Used for testing purposes:", hidden=True)
+
     return am.parse()
 
 

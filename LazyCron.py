@@ -19,27 +19,20 @@ from timewatch import TimeWatch
 from how_busy import Busy
 from sd.chronology import fmt_time, local_time, convert_user_time
 
-import sd.easy_args
 from sd.msgbox import msgbox
 from sd.columns import auto_cols
+from sd.easy_args import easy_parse
 from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, spawn, search_list, DotDict
+
 
 
 def parse_args():
     "Parse arguments"
-
-    am = sd.easy_args.ArgMaster(usage='<schedule file>, options...',
-                             description='Monitor the system for idle states and run scripts at the best time.',
-                             )
-
-
     positionals = [\
     ["schedule", '', str, 'schedule.txt'],
     "Filename to read schedule from."
     ]
-    am.update(positionals, 'Positional Arguments:', positionals=True)
-
-    basic = [\
+    args = [\
     ['polling', 'polling', str, '1'],
     "How often to check (minutes)",
     ['idle', '', str, '0'],
@@ -59,14 +52,17 @@ def parse_args():
     ['stagger', '', float, 0],
     "Wait x minutes between starting programs.",
     ]
-    am.update(basic, 'Optional Arguments:')
 
     hidden = [\
     ['debug', '', bool],
     ]
-    am.update(hidden, "Used for testing purposes:", hidden=True)
 
-    args = am.parse()
+    args = easy_parse(args,
+                      positionals,
+                      hidden=hidden,
+                      usage='<schedule file>, options...',
+                      description='Monitor the system for idle states and run scripts at the best time.')
+
 
     cut = lambda x: convert_user_time(x, default='minutes')
     args.idle = cut(args.idle)
@@ -77,7 +73,9 @@ def parse_args():
         args.skip = 8
     if args.verbose is None:
         args.verbose = 2
+
     return DotDict(vars(args))
+
 
 
 def is_busy(busy,):
@@ -183,17 +181,14 @@ def read_schedule(schedule_apps, alert=warn):
                 continue
 
             # Find lines that have 5 fields in them
-            print('\n' * 2)
             cols = read_line(line)
             if not cols:
                 alert("Can't process line:", repr(line), "\nMake sure you put tabs in between columns")
                 continue
-
-            auto_cols([[item.title()+':' for item in headers], [repr(item) for item in cols], []])
             line = dict(zip(headers, cols))
 
-            # Print the results and see if it matches an existing App
-            # print("\n\n\n" + repr(line))
+
+            # See if it matches an existing App
             for proc in schedule_apps:
                 if line == proc.args:
                     print("Using existing App definition:", proc.name)
@@ -202,6 +197,9 @@ def read_schedule(schedule_apps, alert=warn):
 
             # Otherwise try to create a new one
             else:
+                # Show the args used to creat proc
+                auto_cols([[item.title()+':' for item in headers], [repr(item) for item in cols], []])
+
                 # Slip in command line reqs:
                 if UA.reqs:
                     reqs = line['reqs'].strip()
@@ -217,22 +215,86 @@ def read_schedule(schedule_apps, alert=warn):
                 # Try to process each line
                 try:
                     proc = scheduler.App(line)
-                except Exception as e:      # Bare exception to cover any processing errors
+
+                # Bare exception to cover any processing errors
+                except Exception as e:      # pylint: disable=broad-except
                     alert("Could not process line:", line)
                     traceback.print_exc()
                     print(e, '\n\n\n')
                     continue
                     # proc.add_reqs(UA.reqs)
                 proc.print()
+                print('\n'*2)
+
                 if proc.verify():
                     new_sched.append(proc)
 
-    # Return the old version if new schedule has errors
-    if not new_sched:
-        return schedule_apps
-    else:
-        return new_sched
 
+    # Modify in place
+    if new_sched:
+        schedule_apps[:] = new_sched
+
+def print_procs(schedule_apps):
+    for proc in schedule_apps:
+        proc.print()
+        print('\n')
+
+
+def debug_status(tw, schedule_apps):
+    "Hidden debug tool - Read user input and print status while running"
+    while True:
+        cmd = input().lower().strip()
+        if not cmd:
+            continue
+        first = cmd.split()[0]
+        if cmd == 'time':
+            tw.status()
+
+        elif cmd == 'all':
+            print_procs(schedule_apps)
+
+        elif cmd == 'vars':
+            for app in schedule_apps:
+                print(app)
+
+        elif first == 'app':
+            # Print the app given after app
+            arg = re.sub('^app ', '', cmd)
+            apps = {app.name:app for app in schedule_apps}
+            match = search_list(arg, apps, get='all')
+            if len(match) == 1:
+                match[0].print()
+            else:
+                print('Found', len(match), 'matches for', arg)
+
+        elif cmd == 'args':
+            print(UA)
+
+        elif first in UA:
+            try:
+                val = cmd.split()[1]
+            except IndexError:
+                continue
+            try:
+                val = int(val)
+            except ValueError:
+                continue
+            UA[first] = int(val)
+            print(UA)
+
+        elif cmd.startswith('verbose '):
+            arg = re.sub('^verbose ', '', cmd)
+            try:
+                val = int(arg)
+            except ValueError:
+                continue
+            shared.VERBOSE = val
+            for app in schedule_apps:
+                app.verbose = val
+
+        else:
+            print('???')
+        print()
 
 
 def main(verbose=1):
@@ -246,70 +308,8 @@ def main(verbose=1):
     busy = Busy(expiration=max(UA.polling * 2.5, 60))
 
 
-    def print_procs():
-        for proc in schedule_apps:
-            proc.print()
-            print('\n')
-
-    def debug_status():
-        "Read user input and print status while running"
-        while True:
-            cmd = input().lower().strip()
-            if not cmd:
-                continue
-            first = cmd.split()[0]
-            if cmd == 'time':
-                tw.status()
-
-            elif cmd == 'all':
-                print_procs()
-
-            elif cmd == 'vars':
-                for app in schedule_apps:
-                    print(app)
-
-            elif first == 'app':
-                # Print the app given after app
-                arg = re.sub('^app ', '', cmd)
-                apps = {app.name:app for app in schedule_apps}
-                match = search_list(arg, apps, get='all')
-                if len(match) == 1:
-                    match[0].print()
-                else:
-                    print('Found', len(match), 'matches for', arg)
-
-            elif cmd == 'args':
-                print(UA)
-
-            elif first in UA:
-                try:
-                    val = cmd.split()[1]
-                except IndexError:
-                    continue
-                try:
-                    val = int(val)
-                except ValueError:
-                    continue
-                UA[first] = int(val)
-                print(UA)
-
-            elif cmd.startswith('verbose '):
-                arg = re.sub('^verbose ', '', cmd)
-                try:
-                    val = int(arg)
-                except ValueError:
-                    continue
-                shared.VERBOSE = val
-                for app in schedule_apps:
-                    app.verbose = val
-
-            else:
-                print('???')
-            print()
-
-
     if UA.debug:
-        spawn(debug_status)
+        spawn(debug_status, tw, schedule_apps)
 
     for counter in itercount():
         # Sleep at the end of every loop
@@ -326,7 +326,7 @@ def main(verbose=1):
             print(time.strftime('\n\nToday is %A, %-m-%d'), '\n' + '#' * 80)
             if verbose >= 2:
                 print("Elapsed", fmt_time(tw.elapsed))
-                print_procs()
+                print_procs(schedule_apps)
 
 
         # Read the schedule file if it's been updated
@@ -337,7 +337,7 @@ def main(verbose=1):
                 # The first run
                 print("\n\nSchedule file:", '\n' + '#' * 80)
             last_schedule_read = time.time()
-            schedule_apps = read_schedule(schedule_apps, msgbox if counter else warn)
+            read_schedule(schedule_apps, msgbox if counter else warn)
 
         # Run scripts
         for proc in schedule_apps:
