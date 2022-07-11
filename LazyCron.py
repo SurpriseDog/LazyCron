@@ -242,30 +242,40 @@ def print_procs(schedule_apps):
 
 def debug_status(tw, schedule_apps):
     "Hidden debug tool - Read user input and print status while running"
+    def find_app(name):
+        apps = {app.name:app for app in schedule_apps}
+        match = search_list(arg, apps, get='all')
+        if len(match) == 1:
+            return match[0]
+        else:
+            print('Found', len(match), 'matches for', arg)
+            return None
+
+
     while True:
         cmd = input().lower().strip()
         if not cmd:
             continue
         first = cmd.split()[0]
+
         if cmd == 'time':
             tw.status()
 
         elif cmd == 'all':
             print_procs(schedule_apps)
 
-        elif cmd == 'vars':
-            for app in schedule_apps:
-                print(app)
+        elif first == 'vars':
+            arg = re.sub('^vars ', '', cmd)
+            match = find_app(arg)
+            if match:
+                print(match)
 
         elif first == 'app':
             # Print the app given after app
             arg = re.sub('^app ', '', cmd)
-            apps = {app.name:app for app in schedule_apps}
-            match = search_list(arg, apps, get='all')
-            if len(match) == 1:
-                match[0].print()
-            else:
-                print('Found', len(match), 'matches for', arg)
+            match = find_app(arg)
+            if match:
+                match.print()
 
         elif cmd == 'args':
             print(UA)
@@ -293,7 +303,7 @@ def debug_status(tw, schedule_apps):
                 app.verbose = val
 
         else:
-            print('???')
+            print(cmd, '???')
         print()
 
 
@@ -345,10 +355,11 @@ def main(verbose=1):
                 break
             if proc.ready(tw, polling_rate, busy):
                 if UA.skip and time.time() - shared.START_TIME < UA.skip * 60:
-                    proc.run(tw, testing_mode=True)
+                    proc.run(tw, testing_mode=UA.testing, skip_mode=True)
                 else:
-                    proc.run(tw, testing_mode=UA.testing)
+                    proc.run(tw, testing_mode=UA.testing, skip_mode=False)
                     last_run = time.time()
+
 
 
         # Put the computer to sleep after checking to make sure nothing is going on.

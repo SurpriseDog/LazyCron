@@ -3,7 +3,7 @@
 import sys
 import time
 import subprocess
-from sd.common import check_install, warn, spawn
+from sd.common import check_install, warn
 from sd.chronology import local_time, fmt_time, msleep
 
 import shared

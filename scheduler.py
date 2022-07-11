@@ -610,10 +610,16 @@ class App:
         return True
 
 
-    def run(self, tw, testing_mode):
+    def run(self, tw, testing_mode, skip_mode=False):
         "Run the process in seperate thread while writing output to log."
         now = time.time()
-        self.history.append(now)
+
+        if not (skip_mode and self.start):
+            # Fixes minor buy where skip mode ensures that a process would NEVER start
+            self.history.append(now)
+
+        if skip_mode:
+            testing_mode = True
 
         # If no frequency was specifed, then it will run every day. Note! 0 != None
         if self.freq is None:
