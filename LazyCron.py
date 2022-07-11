@@ -244,18 +244,28 @@ def debug_status(tw, schedule_apps):
     "Hidden debug tool - Read user input and print status while running"
     def find_app(name):
         apps = {app.name:app for app in schedule_apps}
-        match = search_list(arg, apps, get='all')
+        match = search_list(name, apps, get='all')
         if len(match) == 1:
             return match[0]
         else:
             print('Found', len(match), 'matches for', arg)
             return None
 
-
+    history = []
     while True:
         cmd = input().lower().strip()
+        print(repr(cmd))
         if not cmd:
             continue
+
+        # Rerun previous commands with up arrows
+        up = cmd.count('\x1b[a') - cmd.count('\x1b[b')
+        if up and len(history) >= up > 0:
+            cmd = history[-up]
+            print(cmd)
+        else:
+            history.append(cmd)
+
         first = cmd.split()[0]
 
         if cmd == 'time':
