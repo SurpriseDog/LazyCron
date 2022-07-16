@@ -27,7 +27,7 @@ class Reqs:
 
     def __init__(self,):
         # Requirements measured in units of time
-        self.time_reqs = ('idle', 'busy', 'random', 'elapsed')
+        self.time_reqs = ('idle', 'busy', 'random', 'elapsed', 'timeout')
 
         # Requirements measured in KB, MB...
         self.data_reqs = ('disk', 'network')
@@ -41,6 +41,9 @@ class Reqs:
                             open=True,
                             random=86400,
                             start=1,
+                            timeout=3600,
+                            nologs=True,
+                            localdir=True,
                             online=True,
                             elapsed=10 * 60,
                             skip=1,
@@ -58,7 +61,10 @@ class Reqs:
                             lazy='idle',
                             rand='random',
                             startup='start',
+                            no_logs='nologs',
+                            local_dir='localdir',
                             shut='closed',
+                            kill='timeout',
                             skipped='skip',
                             internet='online',
                             used='elapsed',
@@ -82,8 +88,14 @@ class Reqs:
         # All values in aliases are legit reqs
         assert all([val in self.reqs.keys() for val in self.aliases.values()])
 
-    def __call__(self):
-        return self.reqs
+    def __call__(self, value):
+        if value in self.reqs:
+            return self.reqs[value]
+        else:
+            return None
+
+    def reset(self,):
+        self.reqs = DotDict()
 
     def print(self,):
         # Print reqs
@@ -110,7 +122,6 @@ class Reqs:
 
     def process_reqs(self, args):
         "Process requirements field"
-        # print("processing requirements field:", args)
         found = []
 
         for arg in args:
@@ -119,7 +130,7 @@ class Reqs:
             val = (' '.join(split[1:])).strip()
             match = search_list(arg, self.reqs.keys(), get='first')
             if not match:
-                match = search_list(arg, self.aliases.keys(), get='only')
+                match = search_list(arg, self.aliases.keys(), get='first')
                 if match:
                     match = self.aliases[match]
             if not match:
@@ -130,8 +141,6 @@ class Reqs:
             # Get default value if not supplied
             if not val:
                 val = self.reqs[match]
-            # print("Processing req:", match, repr(val))
-
 
             # deal with plugged/unplugged closed/open...
             if match in self.inversions:
@@ -188,49 +197,6 @@ def get_day(day, cycle, today=None):
     return today + delta
 
 
-def run_proc(cmd, log, nice=None):
-    "Spawn a thread to run a command and then write to log if needed."
-
-    if nice:
-        nice -= shared.NICE
-        os.nice(nice)
-
-    folder, file = os.path.split(log)
-    log = os.path.join(folder, safe_filename(file))
-
-    ofilename = unique_filename(log+'.log')
-    efilename = unique_filename(log+'.err')
-
-    ofile = open(ofilename, mode='w')
-    efile = open(efilename, mode='w')
-
-    ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile, shell=True)
-    code = ret.returncode
-
-    oflag = bool(ofile.tell())
-    eflag = bool(efile.tell())
-    ofile.close()
-    efile.close()
-
-
-    # Remove file if nothing was written to them
-    if not oflag:
-        os.remove(ofilename)
-    if not eflag:
-        os.remove(efilename)
-
-    if code:
-        print()
-        warn(cmd, "\nReturned code", code)
-        print("Errors in:", efilename)
-
-
-        # msgbox(cmd, "returned code", str(code), '\n', 'Errors in', efilename)
-        # Does not work because run_proc started in a thread
-
-        quickrun('sd/msgbox.py', ' '.join((crop(cmd), "returned code", str(code))))
-
-
 class App:
     "Spawn processes during windows of time when certain conditions are met"
 
@@ -273,9 +239,14 @@ class App:
             return False
 
         path = self.path.split()[0]
-        if path != 'msgbox' and not path.startswith('#'):
-            if not shutil.which(path):
-                return alert("Path does not exist:", path)
+        if path == 'msgbox' or path.startswith('#'):
+            return True
+
+        if not shutil.which(path):
+            return alert("Path does not exist:", path)
+
+        if self.reqs('localdir') and os.path.exists(path) and not os.path.isabs(path):
+            return alert("Can't mix relative paths when localdir is turned on:", path)
 
         return True
 
@@ -327,7 +298,7 @@ class App:
             # Handle star values
             if values == '*':
                 if key == 'reqs':
-                    self.reqs.reqs = DotDict()
+                    self.reqs.reset()
                 elif key == 'time':
                     self.window = [[0, 86400]]
                 continue
@@ -545,7 +516,7 @@ class App:
         # Check App requirements.
         # Not a match statement. No increase in speed and breaks compatability with python versions < 3.10
         # Future maybe put if verbose > ? before each alert statement for optimization, but probably not needed
-        reqs = self.reqs()
+        reqs = self.reqs.reqs
         if reqs:
 
             # Usage requirements:
@@ -633,7 +604,7 @@ class App:
 
 
         # Must be in run to trigger self.next_run
-        reqs = self.reqs()
+        reqs = self.reqs.reqs
         if 'skip' in reqs and len(self.history) <= reqs.skip:
             self.alert("Skip", len(self.history), 'of', reqs.skip, v=2)
             return
@@ -649,11 +620,81 @@ class App:
                 msgbox(msg)
                 self.thread = None
             else:
-                nice = 5 if 'nice' not in reqs else reqs.nice
                 filename = safe_filename(self.name + '.' + str(int(now)))
-                log_file = os.path.abspath(os.path.join(shared.LOG_DIR, filename))
-                _, self.thread = spawn(run_proc, self.path, log=log_file, nice=nice)
+                _, self.thread = spawn(run_proc,
+                                       self.path,
+                                       log=os.path.abspath(os.path.join(shared.LOG_DIR, filename)),
+                                       nice=5 if 'nice' not in reqs else reqs.nice,
+                                       localdir=self.reqs('localdir'),
+                                       timeout=self.reqs('timeout'),
+                                       nologs=bool(self.reqs('nologs')),
+                                       )
 
         self.alert(text, v=1)
         if self.verbose >= 2:
             self.show_history()
+
+
+
+
+def run_proc(cmd, log, nice=None, localdir=False, nologs=False, timeout=None):
+    "Spawn a thread to run a command and then write to log if needed."
+
+    if nice:
+        nice -= shared.NICE
+        os.nice(nice)
+
+    folder, file = os.path.split(log)
+    log = os.path.join(folder, safe_filename(file))
+
+    ofilename = unique_filename(log+'.log')
+    efilename = unique_filename(log+'.err')
+
+    ofile = open(ofilename, mode='w')
+    efile = open(efilename, mode='w')
+
+
+    if localdir:
+        cwd = os.path.dirname(cmd)
+        if not cwd:
+            cwd = None
+    else:
+        cwd = None
+
+    try:
+        ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile, shell=True, cwd=cwd, timeout=timeout)
+        code = ret.returncode
+    except subprocess.TimeoutExpired:
+        print("Timeout reached for command:", cmd)
+        code = 1
+
+
+    oflag = bool(ofile.tell())
+    eflag = bool(efile.tell())
+    ofile.close()
+    efile.close()
+
+
+    # Remove file if nothing was written to them
+    if not oflag:
+        os.remove(ofilename)
+    if not eflag:
+        os.remove(efilename)
+
+    # Remove logs if returned 0
+    if not code and nologs:
+        if oflag:
+            os.remove(ofilename)
+        if eflag:
+            os.remove(efilename)
+
+    if code:
+        print()
+        warn(cmd, "\nReturned code", code)
+        print("Errors in:", efilename)
+
+
+        # msgbox(cmd, "returned code", str(code), '\n', 'Errors in', efilename)
+        # Does not work because run_proc started in a thread
+
+        quickrun('sd/msgbox.py', ' '.join((crop(cmd), "returned code", str(code))))

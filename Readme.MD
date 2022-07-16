@@ -73,6 +73,11 @@ Examples: m-f, every 2nd Thursday
 	*    cpu          = Maximum current cpu usage to start process, expressed as a percentage of combined cpu power
 	*    network      = Maximum current network usage to start process, expressed as KB/s
 
+	*    nologs       = Delete logs if script returns code `0` (all okay)
+	*    localdir     = Run script from the same directory as it's binary (experimental)
+	*    timeout      = Time to allow the script to run before killing it.
+
+
 	*    random       = Script will run randomly. Example: random 8h will (on average) run every 8 hours. Some days it might run 5+ times, other days not at all. That's [how randomness works.](https://math.stackexchange.com/q/209987/693067)
 
 

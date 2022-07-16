@@ -92,7 +92,7 @@ class TimeWatch:
         "Go to sleep without causing unaccounted for time"
         # quickrun('systemctl', 'suspend')
         subprocess.run(('systemctl', 'suspend'), check=True)
-        self.elapsed = 0
+        self.idle = 0
 
 
 if __name__ == "__main__":

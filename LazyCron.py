@@ -17,7 +17,7 @@ import scheduler
 from shared import aprint
 from timewatch import TimeWatch
 from how_busy import Busy
-from sd.chronology import fmt_time, local_time, convert_user_time
+from sd.chronology import local_time, convert_user_time
 
 from sd.msgbox import msgbox
 from sd.columns import auto_cols
@@ -28,10 +28,12 @@ from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, spawn,
 
 def parse_args():
     "Parse arguments"
+
     positionals = [\
     ["schedule", '', str, 'schedule.txt'],
     "Filename to read schedule from."
     ]
+
     args = [\
     ['polling', 'polling', str, '1'],
     "How often to check (minutes)",
@@ -77,7 +79,6 @@ def parse_args():
     return DotDict(vars(args))
 
 
-
 def is_busy(busy,):
     "Return True if disk or network usage above defaults"
     def fmt(num):
@@ -112,7 +113,6 @@ def read_line(line, warn_score=5):
     "Given a line delimited by tabs and spaces, convert it to 5 fields"
 
     candidates = []
-    # line = re.sub('\t', '    ', line)
     # Start with a large number of spaces (or any tabs) and reduce until the line is parsed
     for spaces in range(8, 1, -1):
         cols = re.split(r"\t+|\s{" + str(spaces) + ",}", line)
@@ -234,87 +234,106 @@ def read_schedule(schedule_apps, alert=warn):
     if new_sched:
         schedule_apps[:] = new_sched
 
-def print_procs(schedule_apps):
-    for proc in schedule_apps:
-        proc.print()
-        print('\n')
 
 
-def debug_status(tw, schedule_apps):
+class Debugger:
     "Hidden debug tool - Read user input and print status while running"
-    def find_app(name):
-        apps = {app.name:app for app in schedule_apps}
+
+    def __init__(self, tw, schedule_apps):
+        self.tw = tw
+        self.schedule_apps = schedule_apps
+
+
+    def print_procs(self,):
+        for proc in self.schedule_apps:
+            proc.print()
+            print('\n')
+
+
+    def find_app(self, name):
+        apps = {app.name:app for app in self.schedule_apps}
         match = search_list(name, apps, get='all')
         if len(match) == 1:
             return match[0]
         else:
-            print('Found', len(match), 'matches for', arg)
+            print('Found', len(match), 'matches for', name)
             return None
 
-    history = []
-    while True:
-        cmd = input().lower().strip()
-        print(repr(cmd))
-        if not cmd:
-            continue
 
-        # Rerun previous commands with up arrows
-        up = cmd.count('\x1b[a') - cmd.count('\x1b[b')
-        if up and len(history) >= up > 0:
-            cmd = history[-up]
-            print(cmd)
-        else:
-            history.append(cmd)
+    def loop(self,):
+        history = []
+        while True:
+            cmd = input().lower().strip()
+            if not cmd:
+                continue
 
+            # Rerun previous commands with up arrows
+            up = cmd.count('\x1b[a') - cmd.count('\x1b[b')
+            if up and len(history) >= up > 0:
+                cmd = history[-up]
+                print(cmd)
+            else:
+                history.append(cmd)
+
+            self.process(cmd)
+
+    def process(self, cmd):
+        "Process a user typed command"
         first = cmd.split()[0]
+        tail = cmd[len(first)+1:]
 
         if cmd == 'time':
-            tw.status()
+            self.tw.status()
 
         elif cmd == 'all':
-            print_procs(schedule_apps)
+            self.print_procs()
 
         elif first == 'vars':
-            arg = re.sub('^vars ', '', cmd)
-            match = find_app(arg)
+            match = self.find_app(tail)
             if match:
                 print(match)
 
-        elif first == 'app':
+        elif first == 'reqs':
+            match = self.find_app(tail)
+            if match:
+                match.reqs.print()
+
+        elif first == 'print':
             # Print the app given after app
-            arg = re.sub('^app ', '', cmd)
-            match = find_app(arg)
+            match = self.find_app(tail)
             if match:
                 match.print()
 
         elif cmd == 'args':
             print(UA)
 
+        # Changing verbose requires special handling
+        elif first == 'verbose':
+            try:
+                val = int(tail)
+            except ValueError:
+                return
+            shared.VERBOSE = val
+            for app in self.schedule_apps:
+                app.verbose = val
+
+        # Change other user arguments
         elif first in UA:
             try:
                 val = cmd.split()[1]
             except IndexError:
-                continue
+                return
             try:
                 val = int(val)
             except ValueError:
-                continue
+                return
             UA[first] = int(val)
             print(UA)
-
-        elif cmd.startswith('verbose '):
-            arg = re.sub('^verbose ', '', cmd)
-            try:
-                val = int(arg)
-            except ValueError:
-                continue
-            shared.VERBOSE = val
-            for app in schedule_apps:
-                app.verbose = val
 
         else:
             print(cmd, '???')
         print()
+
 
 
 def main(verbose=1):
@@ -329,7 +348,7 @@ def main(verbose=1):
 
 
     if UA.debug:
-        spawn(debug_status, tw, schedule_apps)
+        spawn(Debugger(tw, schedule_apps).loop)
 
     for counter in itercount():
         # Sleep at the end of every loop
@@ -344,9 +363,6 @@ def main(verbose=1):
             tw.reset()
             cur_day = time.localtime().tm_yday
             print(time.strftime('\n\nToday is %A, %-m-%d'), '\n' + '#' * 80)
-            if verbose >= 2:
-                print("Elapsed", fmt_time(tw.elapsed))
-                print_procs(schedule_apps)
 
 
         # Read the schedule file if it's been updated
@@ -369,7 +385,6 @@ def main(verbose=1):
                 else:
                     proc.run(tw, testing_mode=UA.testing, skip_mode=False)
                     last_run = time.time()
-
 
 
         # Put the computer to sleep after checking to make sure nothing is going on.
