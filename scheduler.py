@@ -449,10 +449,11 @@ class App:
             self.stop += 86400
 
         if self.history and (self.window or self.date_window):
-            if self.start > now:
-                print("Next run in", chronos.fmt_time(self.start - now), 'for', self.name)
-            else:
-                print("Time window for", self.name, 'closes in', chronos.fmt_time(self.stop - now))
+            if self.verbose >= 2:
+                if self.start > now:
+                    print("Next run in", chronos.fmt_time(self.start - now), 'for', self.name)
+                else:
+                    print("Time window for", self.name, 'closes in', chronos.fmt_time(self.stop - now))
 
         if not now <= self.stop:
             error('Miscalculation!', self.name, now, 'start', self.start, 'stop', self.stop)

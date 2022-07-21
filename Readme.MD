@@ -30,53 +30,62 @@ You can also set various requirements, such as: the computer must be idle for a 
 
 ```
 
-  * **"Time"** is the window is when the script is allowed to run.
+#### Time
+
+Window when the script is allowed to run.
+
      - `1-3am, 2pm - 4pm` (You can have multiple windows separated with commas.)
      - `-5pm` will run until 5pm everyday
      - A `*` will run 24 hours a day.
      Play around with these numbers, the system is very flexible. When you run my script it will show you the next time window available for each program.
 
 
-  * **"Frequency"** is how often the program runs. m = minutes, h = hours and so on. My script should allow most natural language inputs here.
+#### Frequency
+
+How often the program runs. m = minutes, h = hours and so on. My script should allow most natural language inputs here.
+
     - 1h will run every hour
     - 1h elapsed will only count time when the computer is actively in use by user.
 	- A `0` will run as often as possible.
     - A `*` will only run once a day.
 
+#### Date
 
-  * **"Date"** field is usually set as a range to limit it to run on certain days of the week:
+Usually set as a range to limit it to run on certain days of the week:
 Examples: m-f, every 2nd Thursday
+
     - `m-f` will run monday through friday
     - `2nd Thursday` will run every 2nd thursday of the month
     - `1-2nd` will run on the first two days of the month
     - A `*` will run on any day of the year.
 
 
- * **"Requirements"** is a comma separated list of additional requirements needed for the script to run. As with Time, Frequency, and Date, most natural language inputs are allowed. Available ones are as follows:
 
+#### Requirements
+ A comma separated list of additional requirements needed for the script to run. As with Time, Frequency, and Date, most natural language inputs are allowed. Available ones are as follows:
 
 	*  idle         = Time the computer has been idle for.
 	*  busy         = Computer must have been in use within time specified.
 	*  elapsed      = Computer must be used for a certain amount of time in day before running.
-&nbsp;
+
 	*  online       = Do we have internet access?
 	*  closed/open  = Lid must be closed.
 	*  (un)plugged  = Power cord must be attached.
-&nbsp;
+
 	*  start        = Only run this many times at startup. 0 = infinite
 	*  skip         = Skip running this process x times at startup.
 	*  max          = Maximum number of times to run a script.
 	*  reps         = Only run so many times per day or per window of time.
-&nbsp;
+
 	*  nice         = Start script with unix nice value. Higher values are nicer to other processes.
 	*  disk         = Maximum current disk usage to start process, expressed in KB/s
 	*  cpu          = Maximum current cpu usage to start process, expressed as a percentage of combined cpu power
 	*  network      = Maximum current network usage to start process, expressed as KB/s
-&nbsp;
+
 	*  nologs       = Delete logs if script returns code `0` (all okay)
 	*  localdir     = Run script from the same directory as it's binary (experimental)
 	*  timeout      = Time to allow the script to run before killing it.
-&nbsp;
+
 	*  random       = Script will run randomly. Example: random 8h will (on average) run every 8 hours. Some days it might run 5+ times, other days not at all. That's [how randomness works.](https://math.stackexchange.com/q/209987/693067)
 
 
