@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import os
-from sd.common import read_val, read_state, read_file, warn
+from sd.common import read_val, read_state, read_file, warn, quickrun
 
 
 def get_filename(expr, path='/sys/class/power_supply/', verbose=0):
@@ -67,6 +67,13 @@ class Computer:
             return read_val(self._capacity)
         else:
             return 0
+
+    def get_ssid(self,):
+        ssid = quickrun('iwgetid', '-r', hidewarning=True,)
+        if ssid:
+            return ssid[0].strip()
+        else:
+            return ""
 
 
     def plugged_in(self,):

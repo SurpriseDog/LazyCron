@@ -1,31 +1,23 @@
 #!/usr/bin/python3
 
-import sys
 import time
 import subprocess
-from sd.common import check_install, warn
-from sd.chronology import local_time, fmt_time, msleep
 
 import shared
+from sd.common import warn
+from sd.chronology import local_time, fmt_time, msleep
 
-# Choose correct program to get idle time and verify it is installed
-if sys.platform.startswith('win'):
-    PLATFORM = 'windows'
-    warn("Windows implementation not implemented")
-elif sys.platform.startswith('linux'):
-    PLATFORM = 'linux'
-    check_install('xprintidle', msg="sudo apt install xprintidle")
-else:
-    warn("Unknown computer system:", sys.platform)
+
+
 
 
 def get_idle():
     "Run a command to get the system idle time"
-    if PLATFORM == 'linux':
+    if shared.PLATFORM == 'linux':
         val = subprocess.run('xprintidle', check=True, stdout=subprocess.PIPE)
         return float(val.stdout.strip()) / 1000
     else:
-        warn("Can't fetch idle on Unknown platform", PLATFORM)
+        warn("Can't fetch idle on Unknown platform", shared.PLATFORM)
         return 0
 
 
@@ -91,7 +83,7 @@ class TimeWatch:
     def sleepy_time(self,):
         "Go to sleep without causing unaccounted for time"
         # quickrun('systemctl', 'suspend')
-        subprocess.run(('systemctl', 'suspend'), check=True)
+        subprocess.run(('systemctl', 'suspend'), check=False)
         self.idle = 0
 
 

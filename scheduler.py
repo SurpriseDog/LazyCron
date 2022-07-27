@@ -32,6 +32,9 @@ class Reqs:
         # Requirements measured in KB, MB...
         self.data_reqs = ('disk', 'network')
 
+        # String only
+        self.string_reqs = ('ssid', )
+
         # Requirements to run processes, These are default values if no argument given by user
         self.reqs = DotDict(plugged=True,
                             unplugged=True,
@@ -47,6 +50,7 @@ class Reqs:
                             online=True,
                             elapsed=10 * 60,
                             skip=1,
+                            ssid="",
                             max=0,
                             reps=1,
                             nice=5,
@@ -64,6 +68,8 @@ class Reqs:
                             no_logs='nologs',
                             local_dir='localdir',
                             shut='closed',
+                            wifi='ssid',
+                            lan='ssid',
                             kill='timeout',
                             skipped='skip',
                             internet='online',
@@ -126,7 +132,7 @@ class Reqs:
 
         for arg in args:
             split = arg.lower().strip().split()
-            arg = split[0]
+            arg = split[0].rstrip(':')
             val = (' '.join(split[1:])).strip()
             match = search_list(arg, self.reqs.keys(), get='first')
             if not match:
@@ -158,6 +164,8 @@ class Reqs:
                 val = re.sub('second[s]*', 's', val)
                 val = re.sub('[/\\\\]*[s]$', '', val)
                 val = ConvertDataSize()(val)
+            elif match in self.string_reqs:
+                val = val.strip("'").strip('"').strip()
             else:
                 val = int(val)
 
@@ -449,7 +457,7 @@ class App:
             self.stop += 86400
 
         if self.history and (self.window or self.date_window):
-            if self.verbose >= 2:
+            if self.verbose >= 3:
                 if self.start > now:
                     print("Next run in", chronos.fmt_time(self.start - now), 'for', self.name)
                 else:
@@ -575,6 +583,9 @@ class App:
             if 'plugged' in reqs and reqs.plugged != shared.COMP.plugged_in():
                 self.alert("Wrong plug state")
                 return False
+            if 'ssid' in reqs and reqs.ssid.lower() != shared.COMP.get_ssid().lower():
+                self.alert("Wrong network id")
+                return False
             if 'online' in reqs and not check_internet():
                 self.alert("Not Online")
                 return False
@@ -643,6 +654,7 @@ def run_proc(cmd, log, nice=None, localdir=False, nologs=False, timeout=None):
 
     if nice:
         nice -= shared.NICE
+        print('setting nice', nice)
         os.nice(nice)
 
     folder, file = os.path.split(log)

@@ -29,4 +29,11 @@
 *                    4s elapsed      *                *                             # Every elapsed
 
 
+# Cpu nice test
+#*				     *               *                start, nice 0                 sha256sum /dev/urandom
+
+# Network ID
+*	                 *               *                start, ssid: 'free wifi'		# ssid
+
+
 # reset;./LazyCron.py test.schedule.txt -v --polling 2s --debug
