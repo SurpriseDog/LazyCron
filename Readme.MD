@@ -65,8 +65,9 @@ Examples: m-f, every 2nd Thursday
  A comma separated list of additional requirements needed for the script to run. As with Time, Frequency, and Date, most natural language inputs are allowed. Available ones are as follows:
 
 	*  idle         = Time the computer has been idle for.
-	*  busy         = Computer must have been in use within time specified.
-	*  elapsed      = Computer must be used for a certain amount of time in day before running.
+	*  busy         = Time the computer has been continuously busy for
+	*  elapsed      = Total time computer must be used for before running.
+	*  today        = Total time today the computer must be used for before running.
 
 	*  online       = Do we have internet access?
 	*  closed/open  = Lid must be closed.
@@ -81,19 +82,13 @@ Examples: m-f, every 2nd Thursday
 	*  disk         = Maximum current disk usage to start process, expressed in KB/s
 	*  cpu          = Maximum current cpu usage to start process, expressed as a percentage of combined cpu power
 	*  network      = Maximum current network usage to start process, expressed as KB/s
+	*  ssid         = Check to see if wifi network name matches before running.
 
 	*  nologs       = Delete logs if script returns code `0` (all okay)
 	*  localdir     = Run script from the same directory as it's binary (experimental)
 	*  timeout      = Time to allow the script to run before killing it.
 
 	*  random       = Script will run randomly. Example: random 8h will (on average) run every 8 hours. Some days it might run 5+ times, other days not at all. That's [how randomness works.](https://math.stackexchange.com/q/209987/693067)
-
-
-Fun fact: You can combine "busy" and "idle" to run a script when the computer has been used recently, but is now idle:
-
-	* busy 10, idle 5
-
-AKA: The computer was "busy" sometime in the last 10 minutes, but has now been "idle" for at least 5. This is what I use to run a backup script of all my recent work whenever I take a short break.
 
 
 **Reminder**: Use `*` for fields that you don't need to fill in. All 5 fields must contain at least 1 character.

@@ -28,6 +28,7 @@ class TimeWatch:
         self.idle = 0                           # Seconds of idle time
         self.elapsed = 0                        # Total time Computer has spent in usage
         self.increase = 0                       # Increase in elapsed from last call
+        self._inuse_start = 0                       # Contiguous usage time start
         self.today_elapsed = 0                  # Elapsed just for today
         self.verbose = verbose
 
@@ -35,6 +36,13 @@ class TimeWatch:
         "Reset counters on new day"
         self.idle = 0
         self.today_elapsed = 0
+
+    def usage(self):
+        "Time computer in use without breaks"
+        if self._inuse_start:
+            return time.time() - self._inuse_start
+        else:
+            return 0
 
 
     def sleep(self, seconds):
@@ -46,7 +54,7 @@ class TimeWatch:
         missing = msleep(seconds)
         end = time.time()
 
-
+        # add tracker for session todo
         if missing / seconds > 0.05:
             if self.verbose >= 2:
                 shared.aprint("Unaccounted for time during", fmt_time(seconds), "sleep of",\
@@ -62,6 +70,14 @@ class TimeWatch:
             else:
                 idle_increase = self.idle
 
+            # Track usage time
+            if idle_increase / seconds < 0.20:
+                if not self._inuse_start:
+                    self._inuse_start = start
+            else:
+                self._inuse_start = 0
+
+
             # Adjust the elapsed counters with in use time
             self.increase = max(seconds - idle_increase, 0)
             self.elapsed += self.increase
@@ -75,8 +91,10 @@ class TimeWatch:
     def status(self,):
         print('\n' + local_time(),
               'Elapsed:', fmt_time(self.elapsed),
+              'Today:', fmt_time(self.today_elapsed),
               'Idle:', fmt_time(self.idle, digits=2),
               'Increase:', fmt_time(self.increase, digits=2),
+              'Usage:', fmt_time(self.usage(), digits=2)
               )
 
 
@@ -84,10 +102,14 @@ class TimeWatch:
         "Go to sleep without causing unaccounted for time"
         # quickrun('systemctl', 'suspend')
         subprocess.run(('systemctl', 'suspend'), check=False)
+        self._inuse_start = 0
         self.idle = 0
 
+def _tester():
+    tw = TimeWatch(verbose=3)
+    while True:
+        tw.sleep(2)
+        tw.status()
 
 if __name__ == "__main__":
-    TW = TimeWatch(verbose=3)
-    while True:
-        TW.sleep(2)
+    _tester()

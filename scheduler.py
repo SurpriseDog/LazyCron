@@ -27,7 +27,7 @@ class Reqs:
 
     def __init__(self,):
         # Requirements measured in units of time
-        self.time_reqs = ('idle', 'busy', 'random', 'elapsed', 'timeout')
+        self.time_reqs = ('idle', 'busy', 'elapsed', 'today', 'random', 'timeout')
 
         # Requirements measured in KB, MB...
         self.data_reqs = ('disk', 'network')
@@ -40,6 +40,7 @@ class Reqs:
                             unplugged=True,
                             idle=10 * 60,
                             busy=10 * 60,
+                            elapsed=10 * 60,
                             closed=True,
                             open=True,
                             random=86400,
@@ -48,7 +49,7 @@ class Reqs:
                             nologs=True,
                             localdir=True,
                             online=True,
-                            elapsed=10 * 60,
+                            today=10 * 60,
                             skip=1,
                             ssid="",
                             max=0,
@@ -73,8 +74,8 @@ class Reqs:
                             kill='timeout',
                             skipped='skip',
                             internet='online',
-                            used='elapsed',
-                            usage='elapsed',
+                            used='busy',
+                            usage='busy',
                             maximum='max',
                             disc='disk',
                             repititions='reps',
@@ -87,6 +88,8 @@ class Reqs:
         # Needed programs to use named reqs
         self.needed = dict(cpu='mpstat', network='sar', disk='iostat')
         assert all([key in self.reqs for key in self.needed])
+
+        assert all([key in self.reqs for key in self.time_reqs + self.data_reqs + self.string_reqs])
 
         # Check for errors in reqs:
         # No repeats between aliases and real reqs
@@ -286,10 +289,12 @@ class App:
         "Process frequency and elapsed frequency field"
         freq_trigger = False
         for arg in args:
-            if 'elapsed' in arg:
-                arg = arg.replace('elapsed', '')
-                self.elapsed_freq = chronos.convert_user_time(arg, default='minutes')
-                self.elapsed_next = self.elapsed_freq
+            for term in ['elapsed', 'used', 'usage', 'in use', 'busy', 'inuse', 'not idle', 'every']:
+                if term in arg:
+                    arg = arg.replace(term, '').strip()
+                    self.elapsed_freq = chronos.convert_user_time(arg, default='minutes')
+                    self.elapsed_next = self.elapsed_freq
+                    break
             else:
                 freq_trigger = True
                 self.freq = chronos.convert_user_time(arg, default='minutes')
@@ -301,7 +306,8 @@ class App:
     def process_args(self):
         args = self.args
         for key, values in args.items():
-            values = str(values)
+            key = key.lower()
+            values = str(values).lower()
 
             # Handle star values
             if values == '*':
@@ -533,15 +539,18 @@ class App:
                 if tw.idle < reqs.idle or get_idle() < reqs.idle:
                     self.alert("Idle time not reached")
                     return False
-            if 'busy' in reqs and tw.idle > reqs.busy:
-                self.alert("Idle for too long:", tw.idle, '>', reqs.busy)
+            if 'busy' in reqs and tw.usage() < reqs.busy:
+                self.alert("Not in use long enough", tw.usage(), '<', reqs.busy)
+                return False
+            if 'elapsed' in reqs and tw.elapsed < reqs.elapsed:
+                self.alert("Elapsed not reached", tw.elapsed, '<', reqs.elapsed)
+                return False
+            if 'today' in reqs and tw.today_elapsed < reqs.today:
+                self.alert("Today elapsed not reached", tw.today_elapsed, '<', reqs.today)
                 return False
             if 'random' in reqs and random.random() > polling_rate / reqs.random:
                 # Random value not reached
                 self.alert("Random value not reached: 1 in", int(1 / (polling_rate / reqs.random)))
-                return False
-            if 'elapsed' in reqs and tw.today_elapsed < reqs.elapsed:
-                self.alert("Elapsed not reached", tw.today_elapsed, '<', reqs.elapsed)
                 return False
 
             # History requirements:

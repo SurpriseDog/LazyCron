@@ -1,10 +1,14 @@
 # A schedule for testing LazyCron.
 
 # Example commands are below:
-#Time            Frequency        Date                Requirements                  Script Path
+#Time                Frequency       Date             Requirements                  Script Path
 *                    0               Thursday-Mon     random 60s                    # random
-*                    1h              *                usage 6s             	        # elapsed		#tab test
+
 *                    *               *                idle 5s                       # idle
+*					 *               *                start, busy 8s				# busy
+*					 *               *                start, elapsed 8s				# elapsed
+*					 *               *                start, today 8s				# today
+
 
 
 #  This example skips first, runs once and never again:
@@ -15,7 +19,7 @@
 *                    4s              *                 *                            sleep 1m
 
 # Timeout test
-*                    *               *                timeout 10s, localdir         time sleep 1h
+#*                    *               *                timeout 10s, localdir         time sleep 1h
 
 # Run once test with live command, but nologs
 *                    *				 *                reps 1, nologs				echo reps 1
@@ -26,14 +30,20 @@
 
 *                    0				 *			      start							# start
 *                    *				 *			      cpu							# cpu
-*                    4s elapsed      *                *                             # Every elapsed
+
+
+
+*                    4s elapsed      *                *                             # Frequency
 
 
 # Cpu nice test
-#*				     *               *                start, nice 0                 sha256sum /dev/urandom
+#*				     *               *                start, nice 10                sha256sum /dev/urandom
 
-# Network ID
+
 *	                 *               *                start, ssid: 'free wifi'		# ssid
+
+
+
 
 
 # reset;./LazyCron.py test.schedule.txt -v --polling 2s --debug
