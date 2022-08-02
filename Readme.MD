@@ -19,7 +19,7 @@ You can also set various requirements, such as: the computer must be idle for a 
 ```
 
 #Time              Frequency     Date              Requirements                   Script Path
-8:30pm-3am         *             sat-sun           idle 5m, plugged,online        daily_backup_script_path_goes_here.sh
+8:30pm-3am         *             sat-sun           idle 5m, plugged, online        daily_backup_script_path_goes_here.sh
 *                  1h            *                 busy 10, idle 5                my_hourly_backup_script.py
 2pm-8pm            1h elapsed    *                 online                         a_daily_script.py
 -5pm               *             m-f               random 8h                      A_surprise_everyday.py
@@ -66,8 +66,8 @@ Examples: m-f, every 2nd Thursday
 
 	*  idle         = Time the computer has been idle for.
 	*  busy         = Time the computer has been continuously busy for
-	*  elapsed      = Total time computer must be used for before running.
-	*  today        = Total time today the computer must be used for before running.
+	*  elapsed      = Total time computer must be used for.
+	*  today        = Total time today the computer must be used for.
 
 	*  online       = Do we have internet access?
 	*  closed/open  = Lid must be closed.
@@ -80,7 +80,7 @@ Examples: m-f, every 2nd Thursday
 
 	*  nice         = Start script with unix nice value. Higher values are nicer to other processes.
 	*  disk         = Maximum current disk usage to start process, expressed in KB/s
-	*  cpu          = Maximum current cpu usage to start process, expressed as a percentage of combined cpu power
+	*  cpu          = Maximum current cpu usage to start process, expressed as a percentage of combined cpu power.
 	*  network      = Maximum current network usage to start process, expressed as KB/s
 	*  ssid         = Check to see if wifi network name matches before running.
 
@@ -142,3 +142,16 @@ Not sure if your schedule will work correctly? Run the program with the --testin
   * It's a history of runtimes. Instead of recording the unix timestamp, I found it more compact to record the number seconds since the log started.
 
   * Add these numbers to the timestamp at the start of the log to get an exact [unix timestamp](https://en.wikipedia.org/wiki/Unix_time) of when each program started.
+
+
+## Future:
+
+Ideas that could be implemented in the future. File a bug report if with the tag "proposal" if this or another idea interests you:
+
+  * Boolean logic for requirements: `idle 2m OR today 3h`
+     - Currently all requirements run as `AND`.
+
+
+  * Mac / Windows Support
+
+  * New requirement fields, let me know what you want to see!

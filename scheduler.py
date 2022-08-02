@@ -663,7 +663,6 @@ def run_proc(cmd, log, nice=None, localdir=False, nologs=False, timeout=None):
 
     if nice:
         nice -= shared.NICE
-        print('setting nice', nice)
         os.nice(nice)
 
     folder, file = os.path.split(log)

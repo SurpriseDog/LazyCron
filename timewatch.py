@@ -54,8 +54,11 @@ class TimeWatch:
         missing = msleep(seconds)
         end = time.time()
 
-        # add tracker for session todo
+        # If there is missing time during sleep it most likely indicates computer went to sleep
         if missing / seconds > 0.05:
+            if missing > seconds:
+                self.idle = 0
+                self._inuse_start = 0
             if self.verbose >= 2:
                 shared.aprint("Unaccounted for time during", fmt_time(seconds), "sleep of",\
                               fmt_time(missing), "from", local_time(start), 'to', local_time(end))
@@ -89,12 +92,13 @@ class TimeWatch:
         return missing
 
     def status(self,):
+        fmt = lambda x: fmt_time(x if x > 0.1 else 0, digits=2)
         print('\n' + local_time(),
-              'Elapsed:', fmt_time(self.elapsed),
-              'Today:', fmt_time(self.today_elapsed),
-              'Idle:', fmt_time(self.idle, digits=2),
-              'Increase:', fmt_time(self.increase, digits=2),
-              'Usage:', fmt_time(self.usage(), digits=2)
+              'Elapsed:', fmt(self.elapsed),
+              'Today:', fmt(self.today_elapsed),
+              'Idle:', fmt(self.idle),
+              'Increase:', fmt(self.increase),
+              'Usage:', fmt(self.usage())
               )
 
 
