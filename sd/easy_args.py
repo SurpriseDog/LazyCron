@@ -116,7 +116,7 @@ class ArgMaster():
                 msg = args['msg']
                 if msg == SUPPRESS:
                     continue
-                alias = args['alias']
+                alias = max(self.dashes) + args['alias']
                 if show_type:
                     if args['typ'] and args['typ'] != bool:
                         if args['typ'] == list:

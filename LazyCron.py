@@ -62,7 +62,7 @@ def parse_args():
     args = easy_parse(args,
                       positionals,
                       hidden=hidden,
-                      usage='<schedule file>, options...',
+                      usage='<schedule file>, --options...',
                       description='Monitor the system for idle states and run scripts at the best time.')
 
 
@@ -362,7 +362,7 @@ def main(verbose=1):
         if time.localtime().tm_yday != cur_day:
             tw.reset()
             cur_day = time.localtime().tm_yday
-            print(time.strftime('\n\nToday is %A, %-m-%d'), '\n' + '#' * 80)
+            print(time.strftime('\n\n\nToday is %A, %-m-%d'), '\n' + '#' * 80)
 
 
         # Read the schedule file if it's been updated
@@ -392,7 +392,7 @@ def main(verbose=1):
             if shared.COMP.plugged_in():
                 # Plugged mode waits for idle system.
                 if is_busy(busy):
-                    print("Going to sleep\n")
+                    aprint("Going to sleep\n")
                     if not UA.testing:
                         tw.sleepy_time()
                         polling_rate = 2
