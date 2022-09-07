@@ -2,6 +2,7 @@
 
 import os
 import re
+import csv
 import time
 import shutil
 import bisect
@@ -27,13 +28,13 @@ class Reqs:
 
     def __init__(self,):
         # Requirements measured in units of time
-        self.time_reqs = ('idle', 'busy', 'elapsed', 'today', 'random', 'timeout')
+        self.time_reqs = ('idle', 'busy', 'elapsed', 'today', 'random', 'timeout', 'delay', 'loopdelay')
 
         # Requirements measured in KB, MB...
         self.data_reqs = ('disk', 'network')
 
         # String only
-        self.string_reqs = ('ssid', )
+        self.string_reqs = ('ssid', 'environs')
 
         # Requirements to run processes, These are default values if no argument given by user
         self.reqs = DotDict(plugged=True,
@@ -45,6 +46,12 @@ class Reqs:
                             open=True,
                             random=86400,
                             start=1,
+                            retry=3,
+                            loop=0,
+                            environs='',
+                            loopdelay=1,
+                            delay=60,
+                            doubledelay=2,
                             timeout=3600,
                             nologs=True,
                             localdir=True,
@@ -69,7 +76,15 @@ class Reqs:
                             no_logs='nologs',
                             local_dir='localdir',
                             shut='closed',
+                            wait='delay',
                             wifi='ssid',
+                            environmentals='environs',
+                            doubler='doubledelay',
+                            retrydelay='loopdelay',
+                            retry_delay='loopdelay',
+                            loop_delay='loopdelay',
+                            delaymult='doubledelay',
+                            multdelay='doubledelay',
                             lan='ssid',
                             kill='timeout',
                             skipped='skip',
@@ -82,6 +97,7 @@ class Reqs:
                             repetitions='reps',
                             )
 
+
         # Swap plugged with unplugged and so on...
         self.inversions = dict(unplugged='plugged', open='closed')
 
@@ -89,6 +105,7 @@ class Reqs:
         self.needed = dict(cpu='mpstat', network='sar', disk='iostat')
         assert all([key in self.reqs for key in self.needed])
 
+        #
         assert all([key in self.reqs for key in self.time_reqs + self.data_reqs + self.string_reqs])
 
         # Check for errors in reqs:
@@ -129,11 +146,29 @@ class Reqs:
             return check(self.needed[req])
         return True
 
+    def get_environs(self):
+        "Special handling for environs"
+        if 'environs' in self.reqs:
+            out = dict()
+            print('Loading environ:', self.reqs.environs)
+            for arg in self.reqs.environs.split('$'):
+                vals = list(csv.reader([arg.strip()], delimiter='='))[0]
+                vals = list(map(str.strip, vals))
+                if len(vals) != 2:
+                    warn("Corrupted environ string. Expected format: environs VAL1=TEXT $ VAL2=TEXT")
+                else:
+                    out[vals[0]] = vals[1]
+            print('Loaded environ:', out)
+            self.reqs.environs = out
+
+
     def process_reqs(self, args):
         "Process requirements field"
         found = []
 
         for arg in args:
+            if not arg.strip():
+                continue
             split = arg.lower().strip().split()
             arg = split[0].rstrip(':')
             val = (' '.join(split[1:])).strip()
@@ -170,7 +205,10 @@ class Reqs:
             elif match in self.string_reqs:
                 val = val.strip("'").strip('"').strip()
             else:
-                val = int(val)
+                try:
+                    val = int(val)
+                except ValueError:
+                    val = float(val)
 
             if inverted:
                 val = not val
@@ -184,6 +222,7 @@ class Reqs:
             if key not in found:
                 del self.reqs[key]
 
+        self.get_environs()
 
 def get_day(day, cycle, today=None):
     "Given a day of the week/month/year, return the next occurence"
@@ -318,7 +357,9 @@ class App:
                 continue
 
             else:
-                values = values.split(',')
+                # values = values.split(',')
+                values = list(csv.reader([values]))[0]
+
                 if key == 'reqs':
                     self.reqs.process_reqs(values)
                 elif key == 'frequency':
@@ -636,20 +677,12 @@ class App:
             text = "Did not start process"
         else:
             text = "Started process"
-            if self.path.startswith('msgbox '):
-                msg = re.sub('^msgbox ', '', self.path).strip().strip('"').strip("'")
-                msgbox(msg)
-                self.thread = None
-            else:
-                filename = safe_filename(self.name + '.' + str(int(now)))
-                _, self.thread = spawn(run_proc,
-                                       self.path,
-                                       log=os.path.abspath(os.path.join(shared.LOG_DIR, filename)),
-                                       nice=5 if 'nice' not in reqs else reqs.nice,
-                                       localdir=self.reqs('localdir'),
-                                       timeout=self.reqs('timeout'),
-                                       nologs=bool(self.reqs('nologs')),
-                                       )
+            filename = safe_filename(self.name + '.' + str(int(now)))
+            _, self.thread = spawn(run_proc,
+                                   self.path,
+                                   log=os.path.abspath(os.path.join(shared.LOG_DIR, filename)),
+                                   reqs=self.reqs
+                                   )
 
         self.alert(text, v=1)
         if self.verbose >= 2:
@@ -658,12 +691,43 @@ class App:
 
 
 
-def run_proc(cmd, log, nice=None, localdir=False, nologs=False, timeout=None):
+def run_proc(cmd, log, reqs):
     "Spawn a thread to run a command and then write to log if needed."
 
-    if nice:
-        nice -= shared.NICE
-        os.nice(nice)
+    localdir = reqs('localdir')
+    timeout = reqs('timeout')
+    nologs = bool(reqs('nologs'))
+    retry = reqs('retry')
+    loop = reqs('loop')
+    loopdelay = reqs('loopdelay')               # Delay after each loop
+    delaymult = reqs('doubledelay')             # Multiply delay by this amount each time
+
+    if loopdelay is None:
+        loopdelay = 60
+
+
+    # Default to doubling delay each time if running in retry mode
+    if delaymult is None and retry:
+        delaymult = 2
+    else:
+        delaymult = 1
+
+    if reqs('delay'):
+        time.sleep(reqs('delay'))
+
+
+    if reqs('nice'):
+        os.nice(reqs('nice') - shared.NICE)
+
+    if reqs('environs'):
+        env = reqs('environs')
+        # print(reqs('environs'))
+    else:
+        env = os.environ.copy()
+
+    if cmd.startswith('msgbox '):
+        cmd = os.path.abspath('sd/msgbox.py') + re.sub('^msgbox ', ' ', cmd.strip().strip('"').strip("'"))
+
 
     folder, file = os.path.split(log)
     log = os.path.join(folder, safe_filename(file))
@@ -671,8 +735,8 @@ def run_proc(cmd, log, nice=None, localdir=False, nologs=False, timeout=None):
     ofilename = unique_filename(log+'.log')
     efilename = unique_filename(log+'.err')
 
-    ofile = open(ofilename, mode='w')
-    efile = open(efilename, mode='w')
+    ofile = open(ofilename, mode='a')
+    efile = open(efilename, mode='a')
 
 
     if localdir:
@@ -682,12 +746,44 @@ def run_proc(cmd, log, nice=None, localdir=False, nologs=False, timeout=None):
     else:
         cwd = None
 
-    try:
-        ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile, shell=True, cwd=cwd, timeout=timeout)
-        code = ret.returncode
-    except subprocess.TimeoutExpired:
-        print("Timeout reached for command:", cmd)
-        code = 1
+    counter = 0
+    while True:
+        counter += 1
+        start = time.perf_counter()
+
+        def ostatus(header, counter):
+            "Write retry information to output file"
+            print(header + ':', counter)
+            ofile.write("Process took: " + chronos.fmt_time(time.perf_counter() - start) + \
+                        " and returned code " + str(code))
+            ofile.write("\n\n\n" + header +  ": " + str(counter))
+            ofile.flush()
+
+        if counter >= 2:
+            print("Sleeping for", loopdelay)
+            time.sleep(loopdelay)
+            loopdelay *= delaymult
+            ofile.write("Starting at: " + str(int(time.time())) + ' = ' + chronos.local_time())
+
+        try:
+            ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile, shell=True,
+                                 cwd=cwd, timeout=timeout, env=env)
+            code = ret.returncode
+        except subprocess.TimeoutExpired:
+            print("Timeout reached for command:", cmd)
+            code = 1
+
+        # Run this script again if requested (does not count toward reps)
+        if retry is not None:
+            if code != 0 and (counter <= retry or retry == 0):
+                ostatus("Retry", counter)
+                continue
+        if loop is not None:
+            if counter <= loop or loop == 0:
+                ostatus("Loop", counter)
+                continue
+        break
+
 
 
     oflag = bool(ofile.tell())

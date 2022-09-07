@@ -64,31 +64,53 @@ Examples: m-f, every 2nd Thursday
 #### Requirements
  A comma separated list of additional requirements needed for the script to run. As with Time, Frequency, and Date, most natural language inputs are allowed. Available ones are as follows:
 
+
+**Time Requirements**
+
 	*  idle         = Time the computer has been idle for.
 	*  busy         = Time the computer has been continuously busy for
 	*  elapsed      = Total time computer must be used for.
 	*  today        = Total time today the computer must be used for.
 
+
+**Computer Requirements**
+
 	*  online       = Do we have internet access?
 	*  closed/open  = Lid must be closed.
-	*  (un)plugged  = Power cord must be attached.
-
-	*  start        = Only run this many times at startup. 0 = infinite
-	*  skip         = Skip running this process x times at startup.
-	*  max          = Maximum number of times to run a script.
-	*  reps         = Only run so many times per day or per window of time.
-
-	*  nice         = Start script with unix nice value. Higher values are nicer to other processes.
+	*  (un)plugged  = Power cord must be attached..
 	*  disk         = Maximum current disk usage to start process, expressed in KB/s
 	*  cpu          = Maximum current cpu usage to start process, expressed as a percentage of combined cpu power.
 	*  network      = Maximum current network usage to start process, expressed as KB/s
 	*  ssid         = Check to see if wifi network name matches before running.
 
+
+**When and How often**
+
+	*  start        = Only run this many times at startup. 0 = infinite
+	*  skip         = Skip running this process x times at startup.
+	*  max          = Maximum number of times to run a script.
+	*  reps         = Only run so many times per day or per window of time.
+	*  delay        = Delay before starting script
+	*  random       = Script will run randomly. Example: random 8h will (on average) run every 8 hours. Some days it might run 5+ times, other days not at all. That's [how randomness works.](https://math.stackexchange.com/q/209987/693067)
+
+
+**Loops**
+
+	*  retry        = Retry this many times on failure. Does not count toward reps.
+	*  loop         = Run this many times when the script ends. loop 0 = loop forever. Does not count toward reps.
+	*  loopdelay    = Delay this long after loop or retry. Default = 60s if not set
+	*  doubledelay  = Double the delay after each loop. Default = On for retry mode
+
+
+**Environment**
+
+	*  nice         = Start script with unix nice value. Higher values are nicer to other processes
 	*  nologs       = Delete logs if script returns code `0` (all okay)
 	*  localdir     = Run script from the same directory as it's binary (experimental)
 	*  timeout      = Time to allow the script to run before killing it.
+	*  environs     = Set [environment variables](https://en.wikipedia.org/wiki/Environment_variable) before starting. Format: `environs VAL1=TEXT $ VAL2=TEXT:
 
-	*  random       = Script will run randomly. Example: random 8h will (on average) run every 8 hours. Some days it might run 5+ times, other days not at all. That's [how randomness works.](https://math.stackexchange.com/q/209987/693067)
+
 
 
 **Reminder**: Use `*` for fields that you don't need to fill in. All 5 fields must contain at least 1 character.

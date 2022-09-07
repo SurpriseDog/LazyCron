@@ -28,7 +28,7 @@
 12am to 11:59pm      0               *                max 2                         # max
 9-11pm               *               *                reps 2                        # reps
 
-*                    0				 *			      start							# start
+*                    0				 *			      start,						# start
 *                    *				 *			      cpu							# cpu
 
 
@@ -41,7 +41,9 @@
 
 
 *	                 *               *                start, ssid: 'free wifi'		# ssid
-
+#*	                 *               *                delay 2s, loop, loopdelay 8s	sd/msgbox.py looper
+*	                 *               *                retry 8, delaymult 1.2		md5sum nonexistantfilename
+*	                 *               *                environs 'muffins = 3 $ test = 2', start			env
 
 
 
