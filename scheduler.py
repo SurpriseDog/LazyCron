@@ -726,16 +726,17 @@ def run_proc(cmd, log, reqs):
     if cmd.startswith('msgbox '):
         cmd = os.path.abspath('sd/msgbox.py') + re.sub('^msgbox ', ' ', cmd.strip())
 
+
+    # Set output and error files
     folder, file = os.path.split(log)
     log = os.path.join(folder, safe_filename(file))
-
     ofilename = unique_filename(log+'.log')
     efilename = unique_filename(log+'.err')
-
     ofile = open(ofilename, mode='a')
     efile = open(efilename, mode='a')
 
 
+    # Set current working directory
     if localdir:
         cwd = os.path.dirname(cmd)
         if not cwd:
@@ -743,6 +744,8 @@ def run_proc(cmd, log, reqs):
     else:
         cwd = None
 
+
+    # Loop in retry and loop modes
     counter = 0
     while True:
         counter += 1
@@ -781,7 +784,7 @@ def run_proc(cmd, log, reqs):
                 continue
         break
 
-
+    # Close output files
     oflag = bool(ofile.tell())
     eflag = bool(efile.tell())
     ofile.close()
