@@ -30,7 +30,9 @@ You can also set various requirements, such as: the computer must be idle for a 
 
 ```
 
-#### Time
+----
+
+### Time
 
 Window when the script is allowed to run.
 
@@ -40,7 +42,7 @@ Window when the script is allowed to run.
      Play around with these numbers, the system is very flexible. When you run my script it will show you the next time window available for each program.
 
 
-#### Frequency
+### Frequency
 
 How often the program runs. m = minutes, h = hours and so on. My script should allow most natural language inputs here.
 
@@ -49,7 +51,7 @@ How often the program runs. m = minutes, h = hours and so on. My script should a
 	- A `0` will run as often as possible.
     - A `*` will only run once a day.
 
-#### Date
+### Date
 
 Usually set as a range to limit it to run on certain days of the week:
 Examples: m-f, every 2nd Thursday
@@ -61,7 +63,7 @@ Examples: m-f, every 2nd Thursday
 
 
 
-#### Requirements
+### Requirements
  A comma separated list of additional requirements needed for the script to run. As with Time, Frequency, and Date, most natural language inputs are allowed. Available ones are as follows:
 
 
@@ -108,7 +110,7 @@ Examples: m-f, every 2nd Thursday
 	*  nologs       = Delete logs if script returns code `0` (all okay)
 	*  localdir     = Run script from the same directory as it's binary (experimental)
 	*  timeout      = Time to allow the script to run before killing it.
-	*  environs     = Set [environment variables](https://en.wikipedia.org/wiki/Environment_variable) before starting. Format: `environs VAL1=TEXT $ VAL2=TEXT:
+	*  environs     = Set environmental variables before starting. Format: environs VAL1=TEXT $ VAL2=TEXT
 
 
 
