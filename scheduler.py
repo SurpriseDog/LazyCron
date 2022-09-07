@@ -545,7 +545,7 @@ class App:
             aprint(*args, '::', self.name, )
 
 
-    def ready(self, tw, polling_rate, busy):
+    def ready(self, twatch, polling_rate, busy):
         "Is the process ready to be run?"
         now = time.time()
 
@@ -564,7 +564,7 @@ class App:
             return False
 
         if self.elapsed_freq:
-            if tw.elapsed < self.elapsed_next:
+            if twatch.elapsed < self.elapsed_next:
                 self.alert("Elapsed freq not reached")
                 return False
 
@@ -577,17 +577,17 @@ class App:
 
             # Usage requirements:
             if 'idle' in reqs:
-                if tw.idle < reqs.idle or get_idle() < reqs.idle:
+                if twatch.idle < reqs.idle or get_idle() < reqs.idle:
                     self.alert("Idle time not reached")
                     return False
-            if 'busy' in reqs and tw.usage() < reqs.busy:
-                self.alert("Not in use long enough", tw.usage(), '<', reqs.busy)
+            if 'busy' in reqs and twatch.usage() < reqs.busy:
+                self.alert("Not in use long enough", twatch.usage(), '<', reqs.busy)
                 return False
-            if 'elapsed' in reqs and tw.elapsed < reqs.elapsed:
-                self.alert("Elapsed not reached", tw.elapsed, '<', reqs.elapsed)
+            if 'elapsed' in reqs and twatch.elapsed < reqs.elapsed:
+                self.alert("Elapsed not reached", twatch.elapsed, '<', reqs.elapsed)
                 return False
-            if 'today' in reqs and tw.today_elapsed < reqs.today:
-                self.alert("Today elapsed not reached", tw.today_elapsed, '<', reqs.today)
+            if 'today' in reqs and twatch.today_elapsed < reqs.today:
+                self.alert("Today elapsed not reached", twatch.today_elapsed, '<', reqs.today)
                 return False
             if 'random' in reqs and random.random() > polling_rate / reqs.random:
                 # Random value not reached
@@ -643,7 +643,7 @@ class App:
         return True
 
 
-    def run(self, tw, testing_mode, skip_mode=False):
+    def run(self, twatch, testing_mode, skip_mode=False):
         "Run the process in seperate thread while writing output to log."
         now = time.time()
 
@@ -662,7 +662,7 @@ class App:
             # Otherwise add freq
             self.next_run = now + self.freq
         if self.elapsed_freq:
-            self.elapsed_next = tw.elapsed + self.elapsed_freq
+            self.elapsed_next = twatch.elapsed + self.elapsed_freq
 
 
         # Must be in run to trigger self.next_run
@@ -705,7 +705,6 @@ def run_proc(cmd, log, reqs):
     if loopdelay is None:
         loopdelay = 60
 
-
     # Default to doubling delay each time if running in retry mode
     if delaymult is None:
         if retry:
@@ -716,19 +715,16 @@ def run_proc(cmd, log, reqs):
     if reqs('delay'):
         time.sleep(reqs('delay'))
 
-
     if reqs('nice'):
         os.nice(reqs('nice') - shared.NICE)
 
     if reqs('environs'):
         env = reqs('environs')
-        # print(reqs('environs'))
     else:
         env = os.environ.copy()
 
     if cmd.startswith('msgbox '):
-        cmd = os.path.abspath('sd/msgbox.py') + re.sub('^msgbox ', ' ', cmd.strip().strip('"').strip("'"))
-
+        cmd = os.path.abspath('sd/msgbox.py') + re.sub('^msgbox ', ' ', cmd.strip())
 
     folder, file = os.path.split(log)
     log = os.path.join(folder, safe_filename(file))
@@ -786,12 +782,10 @@ def run_proc(cmd, log, reqs):
         break
 
 
-
     oflag = bool(ofile.tell())
     eflag = bool(efile.tell())
     ofile.close()
     efile.close()
-
 
     # Remove file if nothing was written to them
     if not oflag:
@@ -810,9 +804,4 @@ def run_proc(cmd, log, reqs):
         print()
         warn(cmd, "\nReturned code", code)
         print("Errors in:", efilename)
-
-
-        # msgbox(cmd, "returned code", str(code), '\n', 'Errors in', efilename)
-        # Does not work because run_proc started in a thread
-
         quickrun('sd/msgbox.py', ' '.join((crop(cmd), "returned code", str(code))))

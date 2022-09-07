@@ -239,8 +239,8 @@ def read_schedule(schedule_apps, alert=warn):
 class Debugger:
     "Hidden debug tool - Read user input and print status while running"
 
-    def __init__(self, tw, schedule_apps):
-        self.tw = tw
+    def __init__(self, twatch, schedule_apps):
+        self.twatch = twatch
         self.schedule_apps = schedule_apps
 
 
@@ -257,6 +257,7 @@ class Debugger:
             return match[0]
         else:
             print('Found', len(match), 'matches for', name)
+            _ = [print(m.name) for m in match]
             return None
 
 
@@ -283,7 +284,7 @@ class Debugger:
         tail = cmd[len(first)+1:]
 
         if cmd == 'time':
-            self.tw.status()
+            self.twatch.status()
 
         elif cmd == 'all':
             self.print_procs()
@@ -303,6 +304,11 @@ class Debugger:
             match = self.find_app(tail)
             if match:
                 match.print()
+
+        elif first in ('run', 'start'):
+            match = self.find_app(tail)
+            if match:
+                match.run(self.twatch, False)
 
         elif cmd == 'args':
             print(UA)
@@ -339,7 +345,7 @@ class Debugger:
 def main(verbose=1):
     polling_rate = 0                        # Time to rest at the end of every loop
     idle_sleep = UA.idle                    # Go to sleep after this long plugged in
-    tw = TimeWatch(verbose=verbose)
+    twatch = TimeWatch(verbose=verbose)
     last_schedule_read = 0                  # last time the schedule file was read
     last_run = 0                            # Time when the last program was started
     schedule_apps = []                      # Apps found in schedule.txt
@@ -348,19 +354,19 @@ def main(verbose=1):
 
 
     if UA.debug:
-        spawn(Debugger(tw, schedule_apps).loop)
+        spawn(Debugger(twatch, schedule_apps).loop)
 
     for counter in itercount():
         # Sleep at the end of every loop
-        missing = tw.sleep(polling_rate)
+        missing = twatch.sleep(polling_rate)
         # Loop again to avoid edge case where the machine wakes up and is immediately put back to sleep
         while missing > 2 and missing > polling_rate / 10:
-            missing = tw.sleep(polling_rate)
+            missing = twatch.sleep(polling_rate)
         polling_rate = UA.polling
 
         # Check for a new day
         if time.localtime().tm_yday != cur_day:
-            tw.reset()
+            twatch.reset()
             cur_day = time.localtime().tm_yday
             print(time.strftime('\n\n\nToday is %A, %-m-%d'), '\n' + '#' * 80)
 
@@ -379,22 +385,22 @@ def main(verbose=1):
         for proc in schedule_apps:
             if UA.stagger and (time.time() - last_run) / 60 < UA.stagger:
                 break
-            if proc.ready(tw, polling_rate, busy):
+            if proc.ready(twatch, polling_rate, busy):
                 if UA.skip and time.time() - shared.START_TIME < UA.skip * 60:
-                    proc.run(tw, testing_mode=UA.testing, skip_mode=True)
+                    proc.run(twatch, testing_mode=UA.testing, skip_mode=True)
                 else:
-                    proc.run(tw, testing_mode=UA.testing, skip_mode=False)
+                    proc.run(twatch, testing_mode=UA.testing, skip_mode=False)
                     last_run = time.time()
 
 
         # Put the computer to sleep after checking to make sure nothing is going on.
-        if idle_sleep and tw.idle > idle_sleep:
+        if idle_sleep and twatch.idle > idle_sleep:
             if shared.COMP.plugged_in():
                 # Plugged mode waits for idle system.
                 if is_busy(busy):
                     aprint("Going to sleep\n")
                     if not UA.testing:
-                        tw.sleepy_time()
+                        twatch.sleepy_time()
                         polling_rate = 2
 
 
