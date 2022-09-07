@@ -707,10 +707,11 @@ def run_proc(cmd, log, reqs):
 
 
     # Default to doubling delay each time if running in retry mode
-    if delaymult is None and retry:
-        delaymult = 2
-    else:
-        delaymult = 1
+    if delaymult is None:
+        if retry:
+            delaymult = 2
+        else:
+            delaymult = 1
 
     if reqs('delay'):
         time.sleep(reqs('delay'))
