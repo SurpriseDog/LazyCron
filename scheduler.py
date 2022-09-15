@@ -51,7 +51,7 @@ class Reqs:
                             environs='',
                             loopdelay=1,
                             delay=60,
-                            doubledelay=2,
+                            delaymult=2,
                             timeout=3600,
                             nologs=True,
                             localdir=True,
@@ -79,12 +79,12 @@ class Reqs:
                             wait='delay',
                             wifi='ssid',
                             environmentals='environs',
-                            doubler='doubledelay',
+                            doubler='delaymult',
                             retrydelay='loopdelay',
                             retry_delay='loopdelay',
                             loop_delay='loopdelay',
-                            delaymult='doubledelay',
-                            multdelay='doubledelay',
+                            doubledelay='delaymult',
+                            multdelay='delaymult',
                             lan='ssid',
                             kill='timeout',
                             skipped='skip',
@@ -681,7 +681,8 @@ class App:
             _, self.thread = spawn(run_proc,
                                    self.path,
                                    log=os.path.abspath(os.path.join(shared.LOG_DIR, filename)),
-                                   reqs=self.reqs
+                                   reqs=self.reqs,
+                                   name=self.name,
                                    )
 
         self.alert(text, v=1)
@@ -691,8 +692,8 @@ class App:
 
 
 
-def run_proc(cmd, log, reqs):
-    "Spawn a thread to run a command and then write to log if needed."
+def run_proc(cmd, log, reqs, name):
+    "Run a command in it's own thread, and save stdout and stderr"
 
     localdir = reqs('localdir')
     timeout = reqs('timeout')
@@ -700,7 +701,7 @@ def run_proc(cmd, log, reqs):
     retry = reqs('retry')
     loop = reqs('loop')
     loopdelay = reqs('loopdelay')               # Delay after each loop
-    delaymult = reqs('doubledelay')             # Multiply delay by this amount each time
+    delaymult = reqs('delaymult')               # Multiply delay by this amount each time
 
     if loopdelay is None:
         loopdelay = 60
@@ -753,14 +754,13 @@ def run_proc(cmd, log, reqs):
 
         def ostatus(header, counter):
             "Write retry information to output file"
-            print(header + ':', counter)
+            aprint(name, header + ':', counter)
             ofile.write("Process took: " + chronos.fmt_time(time.perf_counter() - start) + \
                         " and returned code " + str(code))
             ofile.write("\n\n\n" + header +  ": " + str(counter))
             ofile.flush()
 
         if counter >= 2:
-            print("Sleeping for", loopdelay)
             time.sleep(loopdelay)
             loopdelay *= delaymult
             ofile.write("Starting at: " + str(int(time.time())) + ' = ' + chronos.local_time())
@@ -790,17 +790,18 @@ def run_proc(cmd, log, reqs):
     ofile.close()
     efile.close()
 
-    # Remove file if nothing was written to them
-    if not oflag:
-        os.remove(ofilename)
-    if not eflag:
-        os.remove(efilename)
 
     # Remove logs if returned 0
     if not code and nologs:
         if oflag:
             os.remove(ofilename)
         if eflag:
+            os.remove(efilename)
+    else:
+        # Remove file if nothing was written to them
+        if not oflag:
+            os.remove(ofilename)
+        if not eflag:
             os.remove(efilename)
 
     if code:

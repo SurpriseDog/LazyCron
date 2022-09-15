@@ -101,7 +101,7 @@ Examples: m-f, every 2nd Thursday
 	*  retry        = Retry this many times on failure. Does not count toward reps.
 	*  loop         = Run this many times when the script ends. loop 0 = loop forever. Does not count toward reps.
 	*  loopdelay    = Delay this long after loop or retry. Default = 60 seconds if not set.
-	*  doubledelay  = Double the delay after each loop. Default = On for retry mode
+	*  delaymult    = Multiply delay after each loop. Default to 2 (double delay every loop in retry mode)
 
 
 **Environment**
