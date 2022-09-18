@@ -766,8 +766,7 @@ def run_proc(cmd, log, reqs, name):
             ofile.write("Starting at: " + str(int(time.time())) + ' = ' + chronos.local_time())
 
         try:
-            ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile, shell=True,
-                                 cwd=cwd, timeout=timeout, env=env)
+            ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile, cwd=cwd, timeout=timeout, env=env)
             code = ret.returncode
         except subprocess.TimeoutExpired:
             print("Timeout reached for command:", cmd)

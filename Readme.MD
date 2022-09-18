@@ -157,7 +157,7 @@ Not sure if your schedule will work correctly? Run the program with the --testin
 **How do I get messages on the desktop if a program fails?**
 
 
-  * Install PyQt5 python module from pip (preferred): `sudo pip install PyQt5`
+  * Install PyQt6 python module from pip (preferred): `sudo pip install PyQt6`
 
   * or install the third party app: `zenity` `sudo apt install zenity`
 
