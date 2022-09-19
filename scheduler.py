@@ -6,6 +6,7 @@ import csv
 import time
 import shutil
 import bisect
+import shlex
 import random
 import datetime
 import subprocess
@@ -48,6 +49,7 @@ class Reqs:
                             start=1,
                             retry=3,
                             loop=0,
+                            shell=True,
                             environs='',
                             loopdelay=1,
                             delay=60,
@@ -265,40 +267,63 @@ class App:
         self.elapsed_next = 0       # Next time allowed to run by elapsed_freq
 
         self.args = args            # Preserve initial setup args
-        self.path = args['path']    # Path to script
         self.thread = None          # Thread starting running process
         self.verbose = shared.VERBOSE
 
-        name = os.path.basename(self.path.lstrip('#').strip())
-        name = list(indenter(name, wrap=64))
+        self.reqs = Reqs()
+        self.process_args()                         # Process data lines
+        self.cmd = self.process_path(args['path'])
+        self.calc_window()
+
+
+    def process_path(self, path):
+        "Process the command line path from args"
+
+        def alert(*args):
+            warn(*args)
+            msgbox(*args)
+
+        path = path.strip()
+        if not path:
+            return alert("No path specified")
+
+        testing = False
+        if path.startswith('#'):
+            testing = True
+            path = path.lstrip('#')
+
+
+        if not self.reqs('shell'):
+            cmd = shlex.split(path)
+            if cmd[0].lower().startswith('msgbox'):
+                cmd[0] = os.path.abspath('sd/msgbox.py')
+            program = cmd[0]
+        else:
+            cmd = [path]
+            program = shlex.split(path)[0]
+
+        # Get self.name
+        name = os.path.basename(program) + ' ' + ' '.join(cmd[1:])
+        name = list(indenter(name.strip(), wrap=64))
         if len(name) > 1:
             self.name = name[0].rstrip(',') + '...'
         else:
             self.name = name[0].rstrip(',')
 
-        self.reqs = Reqs()
-        self.process_args()                         # Process data lines
-        self.calc_window()
-
-
-    def verify(self,):
-        "Check to make sure it can be run"
-        def alert(*args):
-            warn(*args)
-            msgbox(*args)
-            return False
-
-        path = self.path.split()[0]
-        if path == 'msgbox' or path.startswith('#'):
-            return True
-
-        if not shutil.which(path):
-            return alert("Path does not exist:", path)
+        # Verify it can be run:
+        if not testing and not shutil.which(program):
+            return alert("Could not find program:", program)
 
         if self.reqs('localdir') and os.path.exists(path) and not os.path.isabs(path):
             return alert("Can't mix relative paths when localdir is turned on:", path)
 
-        return True
+
+        # add the # back in
+        if testing:
+            cmd[0] = '#' + cmd[0]
+        return cmd
+
+
 
 
     def process_time(self, section):
@@ -401,7 +426,7 @@ class App:
             print('Freq: ', chronos.fmt_time(self.freq))
         elif self.freq is None:
             print('Freq: ', '*')
-        print('Path: ', self.path)
+        print('cmd: ', self.cmd)
 
         self.reqs.print()
 
@@ -419,7 +444,7 @@ class App:
             return True
         return False
         # Search system wide
-        # return ps_running(self.path)
+        # return ps_running(self.cmd)
 
 
     def calc_date(self, extra=0):
@@ -671,7 +696,7 @@ class App:
             self.alert("Skip", len(self.history), 'of', reqs.skip, v=2)
             return
 
-        if self.path.lstrip().startswith('#'):
+        if self.cmd[0].lstrip().startswith('#'):
             testing_mode = True
         if testing_mode:
             text = "Did not start process"
@@ -679,7 +704,7 @@ class App:
             text = "Started process"
             filename = safe_filename(self.name + '.' + str(int(now)))
             _, self.thread = spawn(run_proc,
-                                   self.path,
+                                   self.cmd,
                                    log=os.path.abspath(os.path.join(shared.LOG_DIR, filename)),
                                    reqs=self.reqs,
                                    name=self.name,
@@ -695,37 +720,23 @@ class App:
 def run_proc(cmd, log, reqs, name):
     "Run a command in it's own thread, and save stdout and stderr"
 
-    localdir = reqs('localdir')
-    timeout = reqs('timeout')
-    nologs = bool(reqs('nologs'))
-    retry = reqs('retry')
-    loop = reqs('loop')
-    loopdelay = reqs('loopdelay')               # Delay after each loop
-    delaymult = reqs('delaymult')               # Multiply delay by this amount each time
+    time.sleep(reqs('delay') or 0)
+    if reqs('nice'):
+        os.nice(reqs('nice') - shared.NICE)
 
-    if loopdelay is None:
-        loopdelay = 60
+
+    retry = reqs('retry')
+
+    # Delay after each loop
+    loopdelay = reqs('loopdelay') if reqs('loopdelay') is not None else 60
 
     # Default to doubling delay each time if running in retry mode
+    delaymult = reqs('delaymult')               # Multiply delay by this amount each time
     if delaymult is None:
         if retry:
             delaymult = 2
         else:
             delaymult = 1
-
-    if reqs('delay'):
-        time.sleep(reqs('delay'))
-
-    if reqs('nice'):
-        os.nice(reqs('nice') - shared.NICE)
-
-    if reqs('environs'):
-        env = reqs('environs')
-    else:
-        env = os.environ.copy()
-
-    if cmd.startswith('msgbox '):
-        cmd = os.path.abspath('sd/msgbox.py') + re.sub('^msgbox ', ' ', cmd.strip())
 
 
     # Set output and error files
@@ -737,17 +748,9 @@ def run_proc(cmd, log, reqs, name):
     efile = open(efilename, mode='a')
 
 
-    # Set current working directory
-    if localdir:
-        cwd = os.path.dirname(cmd)
-        if not cwd:
-            cwd = None
-    else:
-        cwd = None
-
-
     # Loop in retry and loop modes
     counter = 0
+    loops = reqs('loop')
     while True:
         counter += 1
         start = time.perf_counter()
@@ -765,20 +768,26 @@ def run_proc(cmd, log, reqs, name):
             loopdelay *= delaymult
             ofile.write("Starting at: " + str(int(time.time())) + ' = ' + chronos.local_time())
 
+
         try:
-            ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile, cwd=cwd, timeout=timeout, env=env)
+            ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile,
+                                 cwd=os.path.dirname(cmd) if reqs('localdir') else None,
+                                 shell=reqs('shell') or False,
+                                 timeout=reqs('timeout'),
+                                 env=reqs('environs') or os.environ,
+                                 )
             code = ret.returncode
         except subprocess.TimeoutExpired:
             print("Timeout reached for command:", cmd)
             code = 1
 
         # Run this script again if requested (does not count toward reps)
-        if retry is not None:
+        if retry:
             if code != 0 and (counter <= retry or retry == 0):
                 ostatus("Retry", counter)
                 continue
-        if loop is not None:
-            if counter <= loop or loop == 0:
+        if loops is not None:
+            if counter <= loops or loops == 0:
                 ostatus("Loop", counter)
                 continue
         break
@@ -791,7 +800,7 @@ def run_proc(cmd, log, reqs, name):
 
 
     # Remove logs if returned 0
-    if not code and nologs:
+    if not code and bool(reqs('nologs')):
         if oflag:
             os.remove(ofilename)
         if eflag:

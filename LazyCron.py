@@ -226,7 +226,7 @@ def read_schedule(schedule_apps, alert=warn):
                 proc.print()
                 print('\n'*2)
 
-                if proc.verify():
+                if proc.cmd:
                     new_sched.append(proc)
 
 
