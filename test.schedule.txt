@@ -41,8 +41,8 @@
 
 
 *	                 *               *                start, ssid: 'free wifi'		# ssid
-*	                 *               *                delay 2s, loop, loopdelay 8s	msgbox looper
-*	                 *               *                retry 8, delaymult 1.2		md5sum nonexistantfilename
+*	                 *               *                delay 2s, loop 2, loopdelay 8s	msgbox looper
+*	                 *               *                retry, delaymult 1.2			md5sum nonexistantfilename
 *	                 *               *                environs 'muffins = 3 $ test = 2', start			env
 
 

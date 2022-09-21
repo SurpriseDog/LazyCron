@@ -369,6 +369,7 @@ def main(verbose=1):
             twatch.reset()
             cur_day = time.localtime().tm_yday
             print(time.strftime('\n\n\nToday is %A, %-m-%d'), '\n' + '#' * 80)
+            scheduler.compress_last_month(shared.LOG_DIR)
 
 
         # Read the schedule file if it's been updated

@@ -4,10 +4,12 @@ import os
 import re
 import csv
 import time
+import gzip
 import shutil
 import bisect
 import shlex
 import random
+import tarfile
 import datetime
 import subprocess
 from datetime import datetime as dada
@@ -247,6 +249,64 @@ def get_day(day, cycle, today=None):
     else:
         error('cycle', cycle, "unsupported")
     return today + delta
+
+
+def compress_logs(dirname, minimum=5, month=-1, overwrite=False, exts=('.log', '.err')):
+    '''Add last months log files to tar.gz
+    minimum = min number of files to compress (and delete)
+    month = month to compress, 0 = current, -1 = last month and so on
+    overwrite = overwrite existing .tar.gz
+    exts = file extensions to add to tar, None = All files
+    '''
+    # Future: Gather up last years .tar.gz files and combine them?
+    # https://stackoverflow.com/q/2018512/11343425
+
+    cur = os.getcwd()
+    os.chdir(dirname)       # Needed for relative paths
+
+    def compress():
+        "Worker function"
+
+        today = dada(*dada.now().timetuple()[:3])
+        start = chronos.add_date(today, months=month).replace(day=1)
+        end = chronos.add_date(start, months=1)
+        oname = start.strftime("%Y.%m.%B_logs.tar.gz")
+        oname = os.path.join('Archived Logs', oname)
+
+        if not overwrite and os.path.exists(oname):
+            return False
+
+        files = []
+        for entry in os.scandir(dirname):
+            name = entry.name
+            if not entry.is_dir():
+                if not exts or os.path.splitext(name)[-1] in exts:
+                    stat = entry.stat(follow_symlinks=False)
+                    if start.timestamp() <= stat.st_mtime <= end.timestamp():
+                        files.append(name)
+
+        if len(files) >= minimum:
+            os.makedirs('Archived Logs', exist_ok=True)
+            print("Compressing files from:", start.timetuple()[:3], "to", end.timetuple()[:3])
+            with tarfile.open(oname, "w:gz") as tar:
+                for name in files:
+                    tar.add(name)
+
+            # Verify gzip
+            with gzip.open(oname, 'rb') as f:
+                while f.read(1024*1024):
+                    pass
+
+            # Delete files once safely in archive
+            for name in files:
+                os.remove(name)
+            print(len(files), "files have been compressed into", oname)
+            return True
+        return False
+
+    status = compress()
+    os.chdir(cur)
+    return status
 
 
 class App:
@@ -771,7 +831,7 @@ def run_proc(cmd, log, reqs, name):
 
         try:
             ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile,
-                                 cwd=os.path.dirname(cmd) if reqs('localdir') else None,
+                                 cwd=os.path.dirname(cmd[0]) if reqs('localdir') else None,
                                  shell=reqs('shell') or False,
                                  timeout=reqs('timeout'),
                                  env=reqs('environs') or os.environ,
