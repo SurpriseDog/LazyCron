@@ -22,7 +22,7 @@ from timewatch import get_idle
 
 from sd.msgbox import msgbox
 from sd.columns import indenter
-from sd.common import safe_filename, error, check_internet, spawn, crop, quickrun
+from sd.common import safe_filename, error, check_internet, spawn, quickrun
 from sd.common import search_list, DotDict, warn, unique_filename, ConvertDataSize, rfs
 
 
@@ -763,7 +763,7 @@ class App:
         else:
             text = "Started process"
             filename = safe_filename(self.name + '.' + str(int(now)))
-            _, self.thread = spawn(run_proc,
+            _, self.thread = spawn(run_thread,
                                    self.cmd,
                                    log=os.path.abspath(os.path.join(shared.LOG_DIR, filename)),
                                    reqs=self.reqs,
@@ -775,15 +775,12 @@ class App:
             self.show_history()
 
 
-
-
-def run_proc(cmd, log, reqs, name):
+def run_thread(cmd, log, reqs, name):
     "Run a command in it's own thread, and save stdout and stderr"
 
     time.sleep(reqs('delay') or 0)
     if reqs('nice'):
         os.nice(reqs('nice') - shared.NICE)
-
 
     retry = reqs('retry')
 
@@ -798,62 +795,76 @@ def run_proc(cmd, log, reqs, name):
         else:
             delaymult = 1
 
+    # Loop in retry and loop modes
+    counter = 0
+    loops = reqs('loop')
+
+    messages_sent = 0
+    def msg():
+        "Send message on error (only once)"
+        nonlocal messages_sent
+        if code and messages_sent < 1:
+            print()
+            warn(cmd, "\nReturned code", code)
+            print("Errors in:", log)
+            quickrun('sd/msgbox.py', name, "returned code", str(code))
+            messages_sent += 1
+
+    while True:
+        counter += 1
+
+        if counter >= 2:
+            loopdelay *= delaymult
+
+        code = run_proc(cmd, log, reqs, attempt=counter)
+
+        # Run this script again if requested (does not count toward reps)
+        if retry:
+            if code != 0 and (counter < retry or retry == 0):
+                time.sleep(loopdelay)
+                aprint("Retry", counter + 1, '::', name)
+                continue
+        if loops is not None:
+            msg()
+            if counter < loops or loops == 0:
+                time.sleep(loopdelay)
+                aprint("Loop", counter + 1, '::', name)
+                continue
+        break
+    msg()
+
+
+def run_proc(cmd, log, reqs, attempt):
+    "Actually run the process"
 
     # Set output and error files
     folder, file = os.path.split(log)
     log = os.path.join(folder, safe_filename(file))
-    ofilename = unique_filename(log+'.log')
-    efilename = unique_filename(log+'.err')
+
+    if attempt >= 2:
+        log = log + '.' + str(attempt)
+
+    ofilename = unique_filename(log + '.log')
+    efilename = unique_filename(log + '.err')
     ofile = open(ofilename, mode='a')
     efile = open(efilename, mode='a')
 
-
-    # Loop in retry and loop modes
-    counter = 0
-    loops = reqs('loop')
-    while True:
-        counter += 1
-        start = time.perf_counter()
-
-        def ostatus(header, counter):
-            "Write retry information to output file"
-            aprint(name, header + ':', counter)
-            ofile.write("Process took: " + chronos.fmt_time(time.perf_counter() - start) + \
-                        " and returned code " + str(code))
-            ofile.write("\n\n\n" + header +  ": " + str(counter))
-            ofile.flush()
-
-        if counter >= 2:
-            time.sleep(loopdelay)
-            loopdelay *= delaymult
-            ofile.write("Starting at: " + str(int(time.time())) + ' = ' + chronos.local_time())
-
-
-        try:
-            ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile,
-                                 cwd=os.path.dirname(cmd[0]) if reqs('localdir') else None,
-                                 shell=reqs('shell') or False,
-                                 timeout=reqs('timeout'),
-                                 env=reqs('environs') or os.environ,
-                                 )
-            code = ret.returncode
-        except subprocess.TimeoutExpired:
-            print("Timeout reached for command:", cmd)
-            code = 1
-
-        # Run this script again if requested (does not count toward reps)
-        if retry:
-            if code != 0 and (counter <= retry or retry == 0):
-                ostatus("Retry", counter)
-                continue
-        if loops is not None:
-            if counter <= loops or loops == 0:
-                ostatus("Loop", counter)
-                continue
-        break
+    try:
+        # start = time.perf_counter()
+        ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile,
+                             cwd=os.path.dirname(cmd[0]) if reqs('localdir') else None,
+                             shell=reqs('shell') or False,
+                             timeout=reqs('timeout'),
+                             env=reqs('environs') or os.environ,
+                             )
+        # elapsed = time.perf_counter() - start
+        code = ret.returncode
+    except subprocess.TimeoutExpired:
+        print("Timeout reached for command:", cmd)
+        code = 1
 
     # Close output files
-    oflag = bool(ofile.tell())
+    oflag = bool(ofile.tell())      # Does the file have data in it?
     eflag = bool(efile.tell())
     ofile.close()
     efile.close()
@@ -872,8 +883,4 @@ def run_proc(cmd, log, reqs, name):
         if not eflag:
             os.remove(efilename)
 
-    if code:
-        print()
-        warn(cmd, "\nReturned code", code)
-        print("Errors in:", efilename)
-        quickrun('sd/msgbox.py', ' '.join((crop(cmd), "returned code", str(code))))
+    return code

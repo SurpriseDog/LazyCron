@@ -40,8 +40,9 @@
 #*				     *               *                start, nice 10                sha256sum /dev/urandom
 
 
+*	                 *               *                delay 4s, 					# delay
 *	                 *               *                start, ssid: 'free wifi'		# ssid
-*	                 *               *                delay 2s, loop 2, loopdelay 8s	msgbox looper
+*	                 *               *                loop 2, loopdelay 4s			msgbox looper
 *	                 *               *                retry, delaymult 1.2			md5sum nonexistantfilename
 *	                 *               *                environs 'muffins = 3 $ test = 2', start			env
 
