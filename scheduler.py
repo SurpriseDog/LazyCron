@@ -805,7 +805,7 @@ def run_thread(cmd, log, reqs, name):
         nonlocal messages_sent
         if code and messages_sent < 1:
             print()
-            warn(cmd, "\nReturned code", code)
+            warn(name, "\nReturned code", code)
             print("Errors in:", log)
             quickrun('sd/msgbox.py', name, "returned code", str(code))
             messages_sent += 1

@@ -108,7 +108,7 @@ Examples: m-f, every 2nd Thursday
 | | |
 | `nice` | Start script with unix nice value. Higher values are nicer to other processes |
 | `nologs` | Delete logs if script returns code `0` (all okay) |
-| `localdir` | Run script from the same directory as it's binary (experimental) |
+| `localdir` | Run a script from the same directory that it's in. |
 | `timeout` | Time to allow the script to run before killing it. |
 | `environs` | Set environmental variables before starting.  <br /> Format : `environs VAL1=TEXT $ VAL2=TEXT` (seperate variables with $) |
 | `shell` | Sets `subprocess.run(shell=True)` <br /> Allows access to advanced shell features in command, but is considered a [security risk.](https://docs.python.org/3/library/subprocess.html#security-considerations) |

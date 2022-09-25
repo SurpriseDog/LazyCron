@@ -84,26 +84,30 @@ def is_busy(busy,):
     def fmt(num):
         return rfs(num)+'/s'
 
+    # Values are cached by Busy class.
+    # Requesting them spins up a thread to check their values, but returns None if not ready yet.
     net_usage = busy.get_net()
-    if net_usage is None:
-        # None = Value not ready yet
+    disk_usage = busy.get_disk()
+    cpu_usage = busy.get_cpu()
+    if None in (net_usage, disk_usage, cpu_usage):
+        # Value not set yet
         return True
+
+
+    # Network Usage
     if net_usage >= shared.LOW_NET:
         aprint("Busy: Network Usage:", fmt(net_usage))
         return True
 
-    disk_usage = busy.get_disk()
-    if disk_usage is None:
-        return True
+    # Disk Usage
     if disk_usage >= shared.LOW_DISK:
         aprint("Busy: Disk usage:", fmt(disk_usage))
         return True
 
-    cpu_usage = busy.get_cpu()
-    if cpu_usage is None:
-        return True
+    # Cpu usage
     if cpu_usage >= shared.LOW_CPU:
         aprint("Busy: Cpu Usage:", fmt(cpu_usage))
+        return True
 
     aprint("Not Busy - Network Usage:", fmt(net_usage), "Disk usage:", fmt(disk_usage))
     return False
@@ -398,7 +402,7 @@ def main(verbose=1):
         if idle_sleep and twatch.idle > idle_sleep:
             if shared.COMP.plugged_in():
                 # Plugged mode waits for idle system.
-                if is_busy(busy):
+                if not is_busy(busy):
                     aprint("Going to sleep\n")
                     if not UA.testing:
                         twatch.sleepy_time()
