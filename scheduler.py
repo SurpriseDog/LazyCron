@@ -816,7 +816,7 @@ def run_thread(cmd, log, reqs, name):
         if counter >= 2:
             loopdelay *= delaymult
 
-        code = run_proc(cmd, log, reqs, attempt=counter)
+        code, elapsed = run_proc(cmd, log, reqs, attempt=counter)
 
         # Run this script again if requested (does not count toward reps)
         if retry:
@@ -832,6 +832,12 @@ def run_thread(cmd, log, reqs, name):
                 continue
         break
     msg()
+
+    if not code:
+        msg = ' '.join((name, 'finished after', chronos.fmt_time(elapsed)))
+        if counter > 1:
+            msg += " on run number " + str(counter)
+        aprint(msg)
 
 
 def run_proc(cmd, log, reqs, attempt):
@@ -850,14 +856,14 @@ def run_proc(cmd, log, reqs, attempt):
     efile = open(efilename, mode='a')
 
     try:
-        # start = time.perf_counter()
+        start = time.perf_counter()
         ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile,
                              cwd=os.path.dirname(cmd[0]) if reqs('localdir') else None,
                              shell=reqs('shell') or False,
                              timeout=reqs('timeout'),
                              env=reqs('environs') or os.environ,
                              )
-        # elapsed = time.perf_counter() - start
+        elapsed = time.perf_counter() - start
         code = ret.returncode
     except subprocess.TimeoutExpired:
         print("Timeout reached for command:", cmd)
@@ -883,4 +889,4 @@ def run_proc(cmd, log, reqs, attempt):
         if not eflag:
             os.remove(efilename)
 
-    return code
+    return code, elapsed
