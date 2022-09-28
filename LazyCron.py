@@ -17,7 +17,7 @@ import scheduler
 from shared import aprint
 from timewatch import TimeWatch
 from how_busy import Busy
-from sd.chronology import local_time, convert_user_time
+from sd.chronology import convert_user_time, fmt_time
 
 from sd.msgbox import msgbox
 from sd.columns import auto_cols
@@ -37,8 +37,8 @@ def parse_args():
     args = [\
     ['polling', 'polling', str, '1'],
     "How often to check (minutes)",
-    ['idle', '', str, '0'],
-    "How long to wait before going to sleep (minutes) 0=Disable",
+    ['idle', '', str],
+    "How long to wait before going to sleep (minutes)",
     ['verbose', '', int, 1],
     "What messages to print",
     ['testing', '', bool],
@@ -403,15 +403,19 @@ def main(verbose=1):
             if shared.COMP.plugged_in():
                 # Plugged mode waits for idle system.
                 if not is_busy(busy):
-                    aprint("Going to sleep\n")
-                    if not UA.testing:
-                        twatch.sleepy_time()
+                    aprint("Going to sleep:    (ᵕ≀ ̠ᵕ )......zzzzzzzZZZZZZZZ")
+                    slept_for = twatch.sleepy_time()
+                    if slept_for > 4:
+                        print('\n\n\n')
+                        aprint("Waking up after", fmt_time(slept_for))
                         polling_rate = 2
+                    else:
+                        print("Sleep command failed!")
+
 
 
 if __name__ == "__main__":
     UA = parse_args()
-    print(UA)
     if UA.idle:
         check_install('iostat', 'sar',
                       msg='''sudo apt install sysstat sar
@@ -422,5 +426,5 @@ if __name__ == "__main__":
     mkdir(UA.logs)
     gohome()
     os.nice(shared.NICE)
-    print("Log started at:", local_time(shared.START_TIME), '=', int(shared.START_TIME))
+    print(time.strftime('Log started on %A, %-m-%d at %H:%M'), '=', int(shared.START_TIME))
     main(shared.VERBOSE)

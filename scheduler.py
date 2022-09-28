@@ -800,7 +800,7 @@ def run_thread(cmd, log, reqs, name):
     loops = reqs('loop')
 
     messages_sent = 0
-    def msg():
+    def send_msg():
         "Send message on error (only once)"
         nonlocal messages_sent
         if code and messages_sent < 1:
@@ -825,13 +825,13 @@ def run_thread(cmd, log, reqs, name):
                 aprint("Retry", counter + 1, '::', name)
                 continue
         if loops is not None:
-            msg()
+            send_msg()
             if counter < loops or loops == 0:
                 time.sleep(loopdelay)
                 aprint("Loop", counter + 1, '::', name)
                 continue
         break
-    msg()
+    send_msg()
 
     if not code:
         msg = ' '.join((name, 'finished after', chronos.fmt_time(elapsed)))

@@ -138,6 +138,9 @@ def fmt_time(num, digits=2, pretty=True, smallest=None, fields=None, zeroes='ski
             if fr == 0:
                 break
             continue
+        # In digits mode, output fields containing significant digits until seconds are reached, then stop
+        elif digits <= 0:
+            break
 
 
         # Avoids the "3 minutes, 2 nanoseconds" nonsense.
@@ -148,14 +151,12 @@ def fmt_time(num, digits=2, pretty=True, smallest=None, fields=None, zeroes='ski
                 digits -= 3
             continue
 
-        # In digits mode, output fields containing significant digits until seconds are reached, then stop
+
         if num >= 60:     # Minutes or higher
             u_num = int(u_num)
             out += [str(u_num) + ' ' + name + ('s' if u_num != 1 else '')]
             digits -= len(str(u_num))
             num -= u_num * unit
-            if digits <= 0:
-                break
         else:
             # If time is less than a minute, just output last field and quit
             d = digits if digits >= 1 else 1
@@ -169,6 +170,7 @@ def fmt_time(num, digits=2, pretty=True, smallest=None, fields=None, zeroes='ski
 for exp in range(-22,66):
     t = 1.7**(exp/2)
     print()
+    print(sig(t,5), fmt_time(t))
     print(sig(t,5), fmt_time(t, fields=2, zeroes='skip'))
     print(sig(t,5), fmt_time(t, fields=0, zeroes='skip'))
 '''
