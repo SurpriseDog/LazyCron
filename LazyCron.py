@@ -38,7 +38,9 @@ def parse_args():
     ['polling', 'polling', str, '1'],
     "How often to check (minutes)",
     ['idle', '', str],
-    "How long to wait before going to sleep (minutes)",
+    "How long to wait before going to sleep while plugged in.",
+    ['idlebatt', '', str],
+    "How long to wait before going to sleep on battery power.",
     ['verbose', '', int, 1],
     "What messages to print",
     ['testing', '', bool],
@@ -66,8 +68,10 @@ def parse_args():
                       description='Monitor the system for idle states and run scripts at the best time.')
 
 
-    cut = lambda x: convert_user_time(x, default='minutes')
+    print(args)
+    cut = lambda x: convert_user_time(x, default='minutes') if x else None
     args.idle = cut(args.idle)
+    args.idlebatt = cut(args.idlebatt)
     args.polling = cut(args.polling)
 
     # Defaults if no value given
@@ -346,15 +350,37 @@ class Debugger:
 
 
 
+def go2sleep(twatch):
+    "Look for missing time indicating sleep"
+    aprint("Going to sleep:    (ᵕ≀ ̠ᵕ )......zzzzzzzZZZZZZZZ")
+    if twatch.sleepy_time():
+        start = time.time()
+        for x in range(20):
+            time.sleep(1)
+            if time.time() - start > x * 1.2 + 2:
+                slept_for = time.time() - start - x
+                break
+        else:
+            slept_for = 0
+
+        if slept_for > 4:
+            print('\n\n\n')
+            aprint("Waking up after", fmt_time(slept_for))
+            return True
+    print("Sleep command failed!")
+    return False
+
+
+
 def main(verbose=1):
     polling_rate = 0                        # Time to rest at the end of every loop
-    idle_sleep = UA.idle                    # Go to sleep after this long plugged in
     twatch = TimeWatch(verbose=verbose)
     last_schedule_read = 0                  # last time the schedule file was read
     last_run = 0                            # Time when the last program was started
     schedule_apps = []                      # Apps found in schedule.txt
     cur_day = time.localtime().tm_yday      # Used for checking for new day
     busy = Busy(expiration=max(UA.polling * 2.5, 60))
+    sleep_failed = 0                        # Number of times Sleep command failed.
 
 
     if UA.debug:
@@ -374,6 +400,7 @@ def main(verbose=1):
             cur_day = time.localtime().tm_yday
             print(time.strftime('\n\n\nToday is %A, %-m-%d'), '\n' + '#' * 80)
             scheduler.compress_logs(shared.LOG_DIR)
+            sleep_failed = 0
 
 
         # Read the schedule file if it's been updated
@@ -398,19 +425,20 @@ def main(verbose=1):
                     last_run = time.time()
 
 
-        # Put the computer to sleep after checking to make sure nothing is going on.
-        if idle_sleep and twatch.idle > idle_sleep:
-            if shared.COMP.plugged_in():
-                # Plugged mode waits for idle system.
+        # Give up after sleep command fails too much, (messes up time calculations)
+        if sleep_failed <= 3:
+            # Put the computer to sleep after checking to make sure nothing is going on.
+            if (UA.idle and twatch.idle > UA.idle and shared.COMP.plugged_in()) or \
+               (UA.idlebatt and twatch.idle > UA.idlebatt and not shared.COMP.plugged_in()): # pylint: disable=R0916
                 if not is_busy(busy):
-                    aprint("Going to sleep:    (ᵕ≀ ̠ᵕ )......zzzzzzzZZZZZZZZ")
-                    slept_for = twatch.sleepy_time()
-                    if slept_for > 4:
-                        print('\n\n\n')
-                        aprint("Waking up after", fmt_time(slept_for))
+                    if go2sleep(twatch):
                         polling_rate = 2
                     else:
-                        print("Sleep command failed!")
+                        sleep_failed += 1
+
+
+
+
 
 
 

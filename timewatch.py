@@ -103,22 +103,14 @@ class TimeWatch:
 
 
     def sleepy_time(self,):
-        "Go to sleep without causing unaccounted for time, return time slept"
+        "Go to sleep without causing unaccounted for time"
         # quickrun('systemctl', 'suspend')
-        start = time.time()
         ret = subprocess.run(('systemctl', 'suspend'), check=False)
         self._inuse_start = 0
         self.idle = 0
         if ret.returncode:
-            return 0
-        else:
-            # Look for missing time indicating sleep
-            for x in range(20):
-                time.sleep(1)
-                if time.time() - start > x * 1.2 + 2:
-                    return time.time() - start - x
-            else:
-                return 0
+            return False
+        return True
 
 
 def _tester():
