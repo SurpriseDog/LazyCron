@@ -68,7 +68,6 @@ def parse_args():
                       description='Monitor the system for idle states and run scripts at the best time.')
 
 
-    print(args)
     cut = lambda x: convert_user_time(x, default='minutes') if x else None
     args.idle = cut(args.idle)
     args.idlebatt = cut(args.idlebatt)
@@ -353,6 +352,7 @@ class Debugger:
 def go2sleep(twatch):
     "Look for missing time indicating sleep"
     aprint("Going to sleep:    (ᵕ≀ ̠ᵕ )......zzzzzzzZZZZZZZZ")
+    cur_day = time.localtime().tm_yday
     if twatch.sleepy_time():
         start = time.time()
         for x in range(20):
@@ -364,8 +364,9 @@ def go2sleep(twatch):
             slept_for = 0
 
         if slept_for > 4:
-            print('\n\n\n')
-            aprint("Waking up after", fmt_time(slept_for))
+            print('\n\n')
+            if time.localtime().tm_yday == cur_day:
+                aprint("Waking up after", fmt_time(slept_for))
             return True
     print("Sleep command failed!")
     return False
