@@ -154,7 +154,6 @@ class Reqs:
         "Special handling for environs"
         if 'environs' in self.reqs:
             out = dict()
-            print('Loading environ:', self.reqs.environs)
             for arg in self.reqs.environs.split('$'):
                 vals = list(csv.reader([arg.strip()], delimiter='='))[0]
                 vals = list(map(str.strip, vals))
@@ -228,85 +227,72 @@ class Reqs:
 
         self.get_environs()
 
-def get_day(day, cycle, today=None):
-    "Given a day of the week/month/year, return the next occurence"
+
+def process_date(src):
+    '''Process a date range into special format:
+    Examples:
+    (start, end, 'week') - ex: (1, 3, 'week')
+    (start, end, 'month')
+    (1, 3, 'week') = 'tuesday to thursday'          (range of days every week)
+    (3, 7, 'month') = '3rd to 7th'                  (range of days every month)
+    ((10, 7), (3, 3) = 'October 7th to March 3rd'   (range of dates every year)
+
+    '''
+
+    section = re.split('-| to ', src)
+    try:
+        days, cycle = list(zip(*map(chronos.udate, section)))
+    except ValueError:
+        error("Cannot understand text:", src)
+
+    if len(set(cycle)) != 1:
+        error("Cycle length in", src, "must be the same")
+    cycle = cycle[0]
+    start = days[0]
+    if len(days) == 1:
+        end = start
+    else:
+        end = days[1]
+
+    return start, end, cycle
+
+
+def next_day(day, cycle, today=None):
+    "Given a process_date formatted data, return the next occurence"
     if not today:
         today = dada(*dada.now().timetuple()[:3])
+
     if cycle == 'week':
         delta = datetime.timedelta((day - today.weekday()))
-        if delta.days < 0:
-            delta += datetime.timedelta(7)
     elif cycle == 'month':
         delta = datetime.timedelta((day - today.day))
-        if delta.days < 0:
-            delta = chronos.add_date(today, months=1).replace(day=day) - today
     elif cycle == 'year':
         month, day = day
         date = today.replace(month=month, day=day)
         if date < today:
-            date = date.replace(year=date.year)
+            date = add_cycle(date, cycle)
         return date
     else:
         error('cycle', cycle, "unsupported")
-    return today + delta
+
+    date = today + delta
+    if date < today:
+        date = add_cycle(date, cycle)
+    return date
 
 
-def compress_logs(dirname, minimum=5, month=-1, overwrite=False, exts=('.log', '.err')):
-    '''Add last months log files to tar.gz
-    minimum = min number of files to compress (and delete)
-    month = month to compress, 0 = current, -1 = last month and so on
-    overwrite = overwrite existing .tar.gz
-    exts = file extensions to add to tar, None = All files
-    '''
-    # Future: Gather up last years .tar.gz files and combine them?
-    # https://stackoverflow.com/q/2018512/11343425
+def add_cycle(date, cycle, count=1):
+    "Add a cycle to a date"
+    if cycle == 'week':
+        return chronos.add_date(date, days=7*count)
+    elif cycle == 'month':
+        return chronos.add_date(date, months=1*count)
+    elif cycle == 'year':
+        return chronos.add_date(date, years=1*count)
+    else:
+        raise ValueError("Unkown cycle length:", cycle)
+    return date
 
-    cur = os.getcwd()
-    os.chdir(dirname)       # Needed for relative paths
-
-    def compress():
-        "Worker function"
-
-        today = dada(*dada.now().timetuple()[:3])
-        start = chronos.add_date(today, months=month).replace(day=1)
-        end = chronos.add_date(start, months=1)
-        oname = start.strftime("%Y.%m.%B_logs.tar.gz")
-        oname = os.path.join('Archived Logs', oname)
-
-        if not overwrite and os.path.exists(oname):
-            return False
-
-        files = []
-        for entry in os.scandir(dirname):
-            name = entry.name
-            if not entry.is_dir():
-                if not exts or os.path.splitext(name)[-1] in exts:
-                    stat = entry.stat(follow_symlinks=False)
-                    if start.timestamp() <= stat.st_mtime <= end.timestamp():
-                        files.append(name)
-
-        if len(files) >= minimum:
-            os.makedirs('Archived Logs', exist_ok=True)
-            print("Compressing files from:", start.timetuple()[:3], "to", end.timetuple()[:3])
-            with tarfile.open(oname, "w:gz") as tar:
-                for name in files:
-                    tar.add(name)
-
-            # Verify gzip
-            with gzip.open(oname, 'rb') as f:
-                while f.read(1024*1024):
-                    pass
-
-            # Delete files once safely in archive
-            for name in files:
-                os.remove(name)
-            print(len(files), "files have been compressed into", oname)
-            return True
-        return False
-
-    status = compress()
-    os.chdir(cur)
-    return status
 
 
 class App:
@@ -394,21 +380,6 @@ class App:
             error("Can't read time:", section)
 
 
-    def process_date(self, section):
-        try:
-            days, cycles = list(zip(*map(chronos.udate, re.split('-| to ', section))))
-        except ValueError:
-            error("Cannot understand text:", section)
-        if len(set(cycles)) != 1:
-            error("Cycle length in", section, "must be the same")
-        cycles = cycles[0]
-        start = days[0]
-        if len(days) == 1:
-            end = start
-        else:
-            end = days[1]
-        self.date_window.append((start, end, cycles))
-
     def process_freq(self, args):
         "Process frequency and elapsed frequency field"
         freq_trigger = False
@@ -454,7 +425,8 @@ class App:
                         if key == 'time':
                             self.process_time(val)
                         if key == 'date':
-                            self.process_date(val)
+                            self.date_window.append(process_date(val))
+
 
 
     def __str__(self):
@@ -508,43 +480,27 @@ class App:
 
 
     def calc_date(self, extra=0):
-        "Get seconds until next date when allowed to run"
-        inf = float("inf")
-        new_start = inf
-        new_stop = 0
+        "Get next date range when allowed to run"
+        if not self.date_window:
+            return None     # Shouldn't be run
         today = dada(*dada.now().timetuple()[:3]) + datetime.timedelta(days=extra)
+        new_start = dada(today.year + 1000, 1, 1)           # farthest future
+        new_stop = dada(11, 11, 11)
 
         # For start date, end date, cycle type in date window
         for sd, ed, cycle in self.date_window:
-            if cycle == 'year':
-                # If today is after end date, advance time one year
-                if today > ed:
-                    sd = sd.replace(year=sd.year+1)     # Start Date
-                    ed = ed.replace(year=ed.year+1)     # End Date
-                start = sd.timestamp()
-                stop = ed.timestamp()
-            else:
-                stop = get_day(ed, cycle, today=today)
-                start = get_day(sd, cycle, today=today)
+            start = next_day(sd, cycle, today)
+            stop = next_day(ed, cycle, today)
 
-                # Move start date back one cycle if after end date
-                if start > stop:
-                    if cycle == 'week':
-                        start = chronos.add_date(start, days=-7)
-                    elif cycle == 'month':
-                        start = chronos.add_date(start, months=-1)
-                    else:
-                        raise ValueError("Unkown cycle length:", cycle)
-                # print('calc_date', cycle, sd, ed, start, stop,  self.name)
-
-                # Convert to timestamps
-                stop = stop.timestamp()
-                start = start.timestamp()
-
+            # If start is after stop, then we may be in the date window
+            if today <= stop <= start:
+                start = add_cycle(start, cycle, -1)
 
             if start < new_start:
                 new_start = start
                 new_stop = stop
+
+        # testing: reload(scheduler); a = scheduler.App({'time': '11pm-2am', 'frequency': '*', 'reqs': '*', 'path': '#test', 'date' : 'sat-mon'}); a.calc_date()    # pylint: disable=line-too-long
         return new_start, new_stop
 
 
@@ -554,7 +510,8 @@ class App:
         now = time.time()
         midnight = round(now - chronos.seconds_since_midnight())
         if self.date_window:
-            self.start, self.stop = self.calc_date()
+            self.start, self.stop = map(dada.timestamp, self.calc_date(extra=1))
+
         else:
             self.start = midnight
             self.stop = midnight
@@ -583,7 +540,7 @@ class App:
                     self.start += 86400
                     self.stop += 86400
                 else:
-                    self.start, self.stop = self.calc_date(extra=1)
+                    self.start, self.stop = map(dada.timestamp, self.calc_date(extra=1))
                 get_first()
         else:
             self.stop += 86400
@@ -890,3 +847,61 @@ def run_proc(cmd, log, reqs, attempt):
             os.remove(efilename)
 
     return code, elapsed
+
+
+def compress_logs(dirname, minimum=5, month=-1, overwrite=False, exts=('.log', '.err')):
+    '''Add last months log files to tar.gz
+    minimum = min number of files to compress (and delete)
+    month = month to compress, 0 = current, -1 = last month and so on
+    overwrite = overwrite existing .tar.gz
+    exts = file extensions to add to tar, None = All files
+    '''
+    # Future: Gather up last years .tar.gz files and combine them?
+    # https://stackoverflow.com/q/2018512/11343425
+
+    cur = os.getcwd()
+    os.chdir(dirname)       # Needed for relative paths
+
+    def compress():
+        "Worker function"
+
+        today = dada(*dada.now().timetuple()[:3])
+        start = chronos.add_date(today, months=month).replace(day=1)
+        end = chronos.add_date(start, months=1)
+        oname = start.strftime("%Y.%m.%B_logs.tar.gz")
+        oname = os.path.join('Archived Logs', oname)
+
+        if not overwrite and os.path.exists(oname):
+            return False
+
+        files = []
+        for entry in os.scandir(dirname):
+            name = entry.name
+            if not entry.is_dir():
+                if not exts or os.path.splitext(name)[-1] in exts:
+                    stat = entry.stat(follow_symlinks=False)
+                    if start.timestamp() <= stat.st_mtime <= end.timestamp():
+                        files.append(name)
+
+        if len(files) >= minimum:
+            os.makedirs('Archived Logs', exist_ok=True)
+            print("Compressing files from:", start.timetuple()[:3], "to", end.timetuple()[:3])
+            with tarfile.open(oname, "w:gz") as tar:
+                for name in files:
+                    tar.add(name)
+
+            # Verify gzip
+            with gzip.open(oname, 'rb') as f:
+                while f.read(1024*1024):
+                    pass
+
+            # Delete files once safely in archive
+            for name in files:
+                os.remove(name)
+            print(len(files), "files have been compressed into", oname)
+            return True
+        return False
+
+    status = compress()
+    os.chdir(cur)
+    return status

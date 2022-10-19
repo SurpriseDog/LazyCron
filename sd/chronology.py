@@ -340,7 +340,7 @@ def udate(text):
         if text:
             day = int(re.sub('[^0-9]*', '', text))
         today = dada(*dada.now().timetuple()[:3])
-        return today.replace(month=month, day=day), 'year'
+        return (month, day), 'year'
 
 
     # Just digits
