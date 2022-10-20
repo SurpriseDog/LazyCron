@@ -161,7 +161,7 @@ class Reqs:
                     warn("Corrupted environ string. Expected format: environs VAL1=TEXT $ VAL2=TEXT")
                 else:
                     out[vals[0]] = vals[1]
-            print('Loaded environ:', out)
+            # print('Loaded environ:', out)
             self.reqs.environs = out
 
 

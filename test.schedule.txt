@@ -42,9 +42,13 @@
 
 *	                 *               *                delay 4s, 					# delay
 *	                 *               *                start, ssid: 'free wifi'		# ssid
-*	                 *               *                loop 2, loopdelay 4s			msgbox looper
+*	                 *               *                loop 2, loopdelay 4s			# msgbox looper
 *	                 *               *                retry, delaymult 1.2			md5sum nonexistantfilename
 *	                 *               *                environs 'muffins = 3 $ test = 2', start			env
+
+
+# Gap tests. Fix the bug where a time interval breaching a cycle boundary didn't work correctly.
+# Oct-Feb should go from this year to the next.
 *                    *               Oct-Feb          *                             # year gap test
 11pm-2am             *               *                *                             # day gap test
 
