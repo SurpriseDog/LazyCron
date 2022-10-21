@@ -124,8 +124,10 @@ class Reqs:
         else:
             return None
 
+
     def reset(self,):
         self.reqs = DotDict()
+
 
     def print(self,):
         # Print reqs
@@ -137,6 +139,7 @@ class Reqs:
                 val = chronos.fmt_time(val)
             out[key] = val
         print('Reqs: ', out)
+
 
     def req_okay(self, req):
         "Check that the req is okay to use"
@@ -150,6 +153,7 @@ class Reqs:
             return check(self.needed[req])
         return True
 
+
     def get_environs(self):
         "Special handling for environs"
         if 'environs' in self.reqs:
@@ -161,7 +165,6 @@ class Reqs:
                     warn("Corrupted environ string. Expected format: environs VAL1=TEXT $ VAL2=TEXT")
                 else:
                     out[vals[0]] = vals[1]
-            # print('Loaded environ:', out)
             self.reqs.environs = out
 
 
@@ -493,7 +496,7 @@ class App:
             stop = next_day(ed, cycle, today)
 
             # If start is after stop, then we may be in the date window
-            if today <= stop <= start:
+            if stop < start:
                 start = add_cycle(start, cycle, -1)
 
             if start < new_start:
