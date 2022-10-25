@@ -650,6 +650,12 @@ def warn(*args, header="\n\nWarning:", sep=' ', delay=1 / 64, confirm=False):
         _nul = input()
 
 
+def qwarn(*args, header="\n\nWarning:", sep=' '):
+    "Quick warn for scripts without delay"
+    msg = undent(sep.join(list(map(str, args))))
+    eprint(msg, header=header, v=2)
+
+
 def mkdir(target, exist_ok=True, **kargs):
     "Make a directory without fuss"
     os.makedirs(target, exist_ok=exist_ok, **kargs)

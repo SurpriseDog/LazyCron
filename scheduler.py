@@ -23,7 +23,7 @@ from timewatch import get_idle
 from sd.msgbox import msgbox
 from sd.columns import indenter
 from sd.common import safe_filename, error, check_internet, spawn, quickrun
-from sd.common import search_list, DotDict, warn, unique_filename, ConvertDataSize, rfs
+from sd.common import search_list, DotDict, qwarn as warn, unique_filename, ConvertDataSize, rfs
 
 
 class Reqs:
@@ -762,13 +762,12 @@ def run_thread(cmd, log, reqs, name):
     messages_sent = 0
     def send_msg():
         "Send message on error (only once)"
-        nonlocal messages_sent
         if code and messages_sent < 1:
             print()
-            warn(name, "\nReturned code", code)
-            print("Errors in:", log)
+            warn(name, "\nReturned code", code, "\nErrors in:", log)
             quickrun('sd/msgbox.py', name, "returned code", str(code))
-            messages_sent += 1
+            return 1
+        return 0
 
     while True:
         counter += 1
@@ -785,13 +784,13 @@ def run_thread(cmd, log, reqs, name):
                 aprint("Retry", counter + 1, '::', name)
                 continue
         if loops is not None:
-            send_msg()
+            messages_sent += send_msg()
             if counter < loops or loops == 0:
                 time.sleep(loopdelay)
                 aprint("Loop", counter + 1, '::', name)
                 continue
         break
-    send_msg()
+    messages_sent += send_msg()
 
     if not code:
         msg = ' '.join((name, 'finished after', chronos.fmt_time(elapsed)))
@@ -823,8 +822,8 @@ def run_proc(cmd, log, reqs, attempt):
                              timeout=reqs('timeout'),
                              env=reqs('environs') or os.environ,
                              )
-        elapsed = time.perf_counter() - start
         code = ret.returncode
+        elapsed = time.perf_counter() - start
     except subprocess.TimeoutExpired:
         print("Timeout reached for command:", cmd)
         code = 1
