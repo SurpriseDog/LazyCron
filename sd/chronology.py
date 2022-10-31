@@ -4,6 +4,7 @@ import re
 import sys
 import time
 import datetime
+import calendar
 from collections import Counter
 from datetime import datetime as dada
 
@@ -199,14 +200,23 @@ def diff_days(*args):
     return diff.days + diff.seconds / 86400  # + diff.microseconds/86400e6
 
 
-def add_date(date, years=0, months=0, days=0):
+def add_date(src, years=0, months=0, days=0):
     "Add a number of years, months, days to date object"
-    if days:
-        date += datetime.timedelta(days=days)
-    new_y, new_m = date.year, date.month
+
+    # Calculate new years and month
+    new_y, new_m = src.year, src.month
     new_y += (new_m + months - 1) // 12 + years
     new_m = (new_m + months - 1) % 12 + 1
-    return date.replace(year=new_y, month=new_m)
+
+    # Replace years and month in date and limit days if month comes up short (like February has 28 days)
+    new_d = min(calendar.monthrange(new_y, new_m)[-1], src.day)
+    date = src.replace(year=new_y, month=new_m, day=new_d)
+
+    # Add and days in
+    if days:
+        date += datetime.timedelta(days=days)
+    return date
+
 
 '''
 today = datetime.datetime(*datetime.datetime.now().timetuple()[:3])

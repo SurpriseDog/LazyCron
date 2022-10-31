@@ -862,7 +862,7 @@ def compress_logs(dirname, minimum=5, month=-1, overwrite=False, exts=('.log', '
     # https://stackoverflow.com/q/2018512/11343425
 
     cur = os.getcwd()
-    os.chdir(dirname)       # Needed for relative paths
+    os.chdir(dirname)       # Needed for relative paths in output file
 
     def compress():
         "Worker function"
