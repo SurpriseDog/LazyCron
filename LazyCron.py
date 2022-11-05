@@ -109,7 +109,7 @@ def is_busy(busy,):
 
     # Cpu usage
     if cpu_usage >= shared.LOW_CPU:
-        aprint("Busy: Cpu Usage:", fmt(cpu_usage))
+        aprint("Busy: Cpu Usage:", str(round(cpu_usage, 1)) + '%')
         return True
 
     aprint("Not Busy - Network Usage:", fmt(net_usage), "Disk usage:", fmt(disk_usage))

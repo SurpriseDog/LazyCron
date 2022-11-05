@@ -481,6 +481,14 @@ class App:
         # Search system wide
         # return ps_running(self.cmd)
 
+    '''
+    def kill(self):
+        "Kill process thread if running"    #todo
+        if not self.running:
+            print("No thread found for", self.name)
+            return False
+    '''
+
 
     def calc_date(self, extra=0):
         "Get next date range when allowed to run"
@@ -775,7 +783,8 @@ def run_thread(cmd, log, reqs, name):
         if counter >= 2:
             loopdelay *= delaymult
 
-        code, elapsed = run_proc(cmd, log, reqs, attempt=counter)
+        # Code = None if terminated early, 0 on success, [Any other integer] on error
+        code, elapsed = run_proc(cmd, log, reqs, name, attempt=counter)
 
         # Run this script again if requested (does not count toward reps)
         if retry:
@@ -792,14 +801,14 @@ def run_thread(cmd, log, reqs, name):
         break
     messages_sent += send_msg()
 
-    if not code:
+    if code == 0:
         msg = ' '.join((name, 'finished after', chronos.fmt_time(elapsed)))
         if counter > 1:
             msg += " on run number " + str(counter)
         aprint(msg)
 
 
-def run_proc(cmd, log, reqs, attempt):
+def run_proc(cmd, log, reqs, name, attempt):
     "Actually run the process"
 
     # Set output and error files
@@ -813,22 +822,57 @@ def run_proc(cmd, log, reqs, attempt):
     efilename = unique_filename(log + '.err')
     ofile = open(ofilename, mode='a')
     efile = open(efilename, mode='a')
+    timeout = reqs('timeout')
+    start = time.perf_counter()
 
+
+    '''
+    # subprocess.run method
     try:
-        start = time.perf_counter()
         ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile,
                              cwd=os.path.dirname(cmd[0]) if reqs('localdir') else None,
                              shell=reqs('shell') or False,
-                             timeout=reqs('timeout'),
+                             timeout=timeout,
                              env=reqs('environs') or os.environ,
                              )
         code = ret.returncode
-        elapsed = time.perf_counter() - start
     except subprocess.TimeoutExpired:
+        code = None
+    '''
+
+    # subprocess.Popen method
+    ret = subprocess.Popen(cmd, stdout=ofile, stderr=efile,
+                           cwd=os.path.dirname(cmd[0]) if reqs('localdir') else None,
+                           shell=reqs('shell') or False,
+                           env=reqs('environs') or os.environ,
+                           )
+
+    def wait(seconds=None):
+        "Wait for subprocess to finish, return None if timeout expires"
+        try:
+            return ret.wait(seconds)
+        except subprocess.TimeoutExpired:
+            return None
+
+
+    # Show pid after 2 seconds
+    if timeout and timeout < 2:
+        code = wait(timeout)
+    else:
+        code = wait(2)
+        if code is None:
+            print(name, 'pid =', ret.pid)
+            if timeout:
+                code = wait(timeout - 2)
+            else:
+                code = wait()
+
+    if code is None:
         print("Timeout reached for command:", cmd)
-        code = 1
+
 
     # Close output files
+    elapsed = time.perf_counter() - start
     oflag = bool(ofile.tell())      # Does the file have data in it?
     eflag = bool(efile.tell())
     ofile.close()
@@ -836,7 +880,7 @@ def run_proc(cmd, log, reqs, attempt):
 
 
     # Remove logs if returned 0
-    if not code and bool(reqs('nologs')):
+    if code == 0 and bool(reqs('nologs')):
         if oflag:
             os.remove(ofilename)
         if eflag:
