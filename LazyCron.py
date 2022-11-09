@@ -171,75 +171,7 @@ def read_line(line, warn_score=5):
         return cols[:4] + [path]
 
 
-def read_schedule(schedule_apps, alert=warn):
-    '''
-    Read the schedule file,
-    schedule_apps = List of Apps
-    alert =         send messages to userspace with warn or msgbox
-    '''
-    new_sched = []
-    headers = "time frequency date reqs path".split()
 
-    with open(UA.schedule) as f:
-        for line in f.readlines():
-            # Ignore comments and empty lines
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-
-            # Find lines that have 5 fields in them
-            cols = read_line(line)
-            if not cols:
-                alert("Can't process line:", repr(line), "\nMake sure you put tabs in between columns")
-                continue
-            line = dict(zip(headers, cols))
-
-
-            # See if it matches an existing App
-            for proc in schedule_apps:
-                if line == proc.args:
-                    print("Using existing App definition:", proc.name)
-                    new_sched.append(proc)
-                    break
-
-            # Otherwise try to create a new one
-            else:
-                # Show the args used to creat proc
-                auto_cols([[item.title()+':' for item in headers], [repr(item) for item in cols], []])
-
-                # Slip in command line reqs:
-                if UA.reqs:
-                    reqs = line['reqs'].strip()
-                    if reqs == '*':
-                        reqs = UA.reqs.strip()
-                    else:
-                        if reqs and not reqs.endswith(','):
-                            reqs += ', '
-                        reqs += UA.reqs.strip()
-                        print(reqs)
-                        line['reqs'] = reqs
-
-                # Try to process each line
-                try:
-                    proc = scheduler.App(line)
-
-                # Bare exception to cover any processing errors
-                except Exception as e:      # pylint: disable=broad-except
-                    alert("Could not process line:", line)
-                    traceback.print_exc()
-                    print(e, '\n\n\n')
-                    continue
-                    # proc.add_reqs(UA.reqs)
-                proc.print()
-                print('\n'*2)
-
-                if proc.cmd:
-                    new_sched.append(proc)
-
-
-    # Modify in place
-    if new_sched:
-        schedule_apps[:] = new_sched
 
 
 
@@ -372,28 +304,140 @@ def go2sleep(twatch):
     return False
 
 
+class ScriptManager:
+    "Keep track of all the available scripts and when last run"
+
+    def __init__(self, busy, file):
+        self.schedule_apps = []                     # Apps found in schedule.txt
+        self.schedule_file = file                   # Schedule File Name
+        self.last_schedule_read = 0                 # Last time the schedule file was read
+        self.last_run = 0                           # Time when the last program was started
+        self.busy = busy
+        self.alert = msgbox                         # Set function to send alerts
+
+
+    def update(self,):
+        "Check schedule file and update if new"
+        if os.path.getmtime(self.schedule_file) > self.last_schedule_read:
+            if self.last_schedule_read:
+                aprint("Schedule file updated:", '\n' + '#' * 80)
+            else:
+                # The first run
+                print("\n\nSchedule file:", '\n' + '#' * 80)
+            self.last_schedule_read = time.time()
+            self.read_schedule()
+
+
+    def run_scripts(self, twatch, polling_rate, flag=None):
+        for proc in self.schedule_apps:
+            if UA.stagger and (time.time() - last_run) / 60 < UA.stagger:
+                break
+            if proc.ready(twatch, polling_rate, self.busy, flag=flag):
+                if UA.skip and time.time() - shared.START_TIME < UA.skip * 60:
+                    proc.run(twatch, testing_mode=UA.testing, skip_mode=True,)
+                else:
+                    proc.run(twatch, testing_mode=UA.testing, skip_mode=False,)
+                    last_run = time.time()
+
+
+    def read_schedule(self,):
+        "Read the schedule file"
+
+        new_sched = []
+        headers = "time frequency date reqs path".split()
+
+        with open(self.schedule_file) as f:
+            for line in f.readlines():
+                # Ignore comments and empty lines
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+
+                # Find lines that have 5 fields in them
+                cols = read_line(line)
+                if not cols:
+                    self.alert("Can't process line:", repr(line), "\nMake sure you put tabs in between columns")
+                    continue
+                line = dict(zip(headers, cols))
+
+
+                # See if it matches an existing App
+                for proc in self.schedule_apps:
+                    if line == proc.args:
+                        print("Using existing App definition:", proc.name)
+                        new_sched.append(proc)
+                        break
+
+                # Otherwise try to create a new one
+                else:
+                    # Show the args used to creat proc
+                    auto_cols([[item.title()+':' for item in headers], [repr(item) for item in cols], []])
+
+                    # Slip in command line reqs:
+                    if UA.reqs:
+                        reqs = line['reqs'].strip()
+                        if reqs == '*':
+                            reqs = UA.reqs.strip()
+                        else:
+                            if reqs and not reqs.endswith(','):
+                                reqs += ', '
+                            reqs += UA.reqs.strip()
+                            print(reqs)
+                            line['reqs'] = reqs
+
+                    # Try to process each line
+                    try:
+                        proc = scheduler.App(line)
+
+                    # Bare exception to cover any processing errors
+                    except Exception as e:      # pylint: disable=broad-except
+                        self.alert("Could not process line:", line)
+                        traceback.print_exc()
+                        print(e, '\n\n\n')
+                        continue
+                        # proc.add_reqs(UA.reqs)
+                    proc.print()
+                    print('\n'*2)
+
+                    if proc.cmd:
+                        new_sched.append(proc)
+
+        # Modify in place
+        if new_sched:
+            self.schedule_apps[:] = new_sched
+
 
 def main(verbose=1):
     polling_rate = 0                        # Time to rest at the end of every loop
     twatch = TimeWatch(verbose=verbose)
-    last_schedule_read = 0                  # last time the schedule file was read
-    last_run = 0                            # Time when the last program was started
-    schedule_apps = []                      # Apps found in schedule.txt
+
     cur_day = time.localtime().tm_yday      # Used for checking for new day
-    busy = Busy(expiration=max(UA.polling * 2.5, 60))
     sleep_failed = 0                        # Number of times Sleep command failed.
+    just_slept = False                      # Just woke up from sleep
+
+    busy = Busy(expiration=max(UA.polling * 2.5, 60))
+    sman = ScriptManager(busy, UA.schedule) # Script Manager
 
 
     if UA.debug:
-        spawn(Debugger(twatch, schedule_apps).loop)
+        spawn(Debugger(twatch, sman.schedule_apps).loop)
 
     for counter in itercount():
+        if counter == 1:
+            sman.alert = warn
+
         # Sleep at the end of every loop
         missing = twatch.sleep(polling_rate)
         # Loop again to avoid edge case where the machine wakes up and is immediately put back to sleep
         while missing > 2 and missing > polling_rate / 10:
+            if not just_slept:
+                sman.run_scripts(twatch, polling_rate, flag='wake')
             missing = twatch.sleep(polling_rate)
         polling_rate = UA.polling
+
+        if just_slept:
+            sman.run_scripts(twatch, polling_rate, flag='wake')
+            just_slept = False
 
         # Check for a new day
         if time.localtime().tm_yday != cur_day:
@@ -404,26 +448,9 @@ def main(verbose=1):
             sleep_failed = 0
 
 
-        # Read the schedule file if it's been updated
-        if os.path.getmtime(UA.schedule) > last_schedule_read:
-            if last_schedule_read:
-                aprint("Schedule file updated:", '\n' + '#' * 80)
-            else:
-                # The first run
-                print("\n\nSchedule file:", '\n' + '#' * 80)
-            last_schedule_read = time.time()
-            read_schedule(schedule_apps, msgbox if counter else warn)
 
-        # Run scripts
-        for proc in schedule_apps:
-            if UA.stagger and (time.time() - last_run) / 60 < UA.stagger:
-                break
-            if proc.ready(twatch, polling_rate, busy):
-                if UA.skip and time.time() - shared.START_TIME < UA.skip * 60:
-                    proc.run(twatch, testing_mode=UA.testing, skip_mode=True)
-                else:
-                    proc.run(twatch, testing_mode=UA.testing, skip_mode=False)
-                    last_run = time.time()
+        sman.update()                               # Update schedule file if it's been updated
+        sman.run_scripts(twatch, polling_rate)      # Run the scripts
 
 
         # Give up after sleep command fails too much, (messes up time calculations)
@@ -432,6 +459,10 @@ def main(verbose=1):
             if (UA.idle and twatch.idle > UA.idle and shared.COMP.plugged_in()) or \
                (UA.idlebatt and twatch.idle > UA.idlebatt and not shared.COMP.plugged_in()): # pylint: disable=R0916
                 if not is_busy(busy):
+                    # Run any sleep scripts:
+                    sman.run_scripts(twatch, polling_rate, flag='sleep')
+                    just_slept = True
+
                     if go2sleep(twatch):
                         polling_rate = 2
                     else:

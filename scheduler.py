@@ -52,6 +52,8 @@ class Reqs:
                             retry=3,
                             loop=0,
                             shell=True,
+                            wake=True,
+                            suspend=True,
                             environs='',
                             loopdelay=1,
                             delay=60,
@@ -82,6 +84,10 @@ class Reqs:
                             shut='closed',
                             wait='delay',
                             wifi='ssid',
+                            sleep='suspend',
+                            slept='suspend',
+                            unsuspend='wake',
+                            woke='wake',
                             environmentals='environs',
                             doubler='delaymult',
                             retrydelay='loopdelay',
@@ -598,8 +604,8 @@ class App:
             aprint(*args, '::', self.name, )
 
 
-    def ready(self, twatch, polling_rate, busy):
-        "Is the process ready to be run?"
+    def ready(self, twatch, polling_rate, busy, flag=None):
+        "Is the process ready to be run?, flags=special keywords to run script like: 'wake', 'suspend'"
         now = time.time()
 
         # Check if process is already running.
@@ -627,6 +633,13 @@ class App:
         # Future maybe put if verbose > ? before each alert statement for optimization, but probably not needed
         reqs = self.reqs.reqs
         if reqs:
+
+            # Special Flags:
+            if 'wake' in reqs and flag != 'wake':
+                return False
+            if 'suspend' in reqs and flag != 'suspend':
+                return False
+
 
             # Usage requirements:
             if 'idle' in reqs:
@@ -805,7 +818,7 @@ def run_thread(cmd, log, reqs, name):
         msg = ' '.join((name, 'finished after', chronos.fmt_time(elapsed)))
         if counter > 1:
             msg += " on run number " + str(counter)
-        aprint(msg)
+        aprint(msg.strip())
 
 
 def run_proc(cmd, log, reqs, name, attempt):
@@ -826,27 +839,6 @@ def run_proc(cmd, log, reqs, name, attempt):
     start = time.perf_counter()
 
 
-    '''
-    # subprocess.run method
-    try:
-        ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile,
-                             cwd=os.path.dirname(cmd[0]) if reqs('localdir') else None,
-                             shell=reqs('shell') or False,
-                             timeout=timeout,
-                             env=reqs('environs') or os.environ,
-                             )
-        code = ret.returncode
-    except subprocess.TimeoutExpired:
-        code = None
-    '''
-
-    # subprocess.Popen method
-    ret = subprocess.Popen(cmd, stdout=ofile, stderr=efile,
-                           cwd=os.path.dirname(cmd[0]) if reqs('localdir') else None,
-                           shell=reqs('shell') or False,
-                           env=reqs('environs') or os.environ,
-                           )
-
     def wait(seconds=None):
         "Wait for subprocess to finish, return None if timeout expires"
         try:
@@ -854,21 +846,42 @@ def run_proc(cmd, log, reqs, name, attempt):
         except subprocess.TimeoutExpired:
             return None
 
+    if not shared.SHOWPID:
+        # subprocess.run method
+        try:
+            ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile,
+                                 cwd=os.path.dirname(cmd[0]) if reqs('localdir') else None,
+                                 shell=reqs('shell') or False,
+                                 timeout=timeout,
+                                 env=reqs('environs') or os.environ,
+                                 )
+            code = ret.returncode
+        except subprocess.TimeoutExpired:
+            code = None
 
-    # Show pid after 2 seconds
-    if timeout and timeout < 2:
-        code = wait(timeout)
     else:
-        code = wait(2)
-        if code is None:
-            print(name, 'pid =', ret.pid)
-            if timeout:
-                code = wait(timeout - 2)
-            else:
-                code = wait()
+        # subprocess.Popen method
+        ret = subprocess.Popen(cmd, stdout=ofile, stderr=efile,
+                               cwd=os.path.dirname(cmd[0]) if reqs('localdir') else None,
+                               shell=reqs('shell') or False,
+                               env=reqs('environs') or os.environ,
+                               )
+
+
+        # Show pid after 2 seconds
+        if timeout and timeout < 2:
+            code = wait(timeout)
+        else:
+            code = wait(2)
+            if code is None:
+                print('pid =', ret.pid, 'for', name)
+                if timeout:
+                    code = wait(timeout - 2)
+                else:
+                    code = wait()
 
     if code is None:
-        print("Timeout reached for command:", cmd)
+        aprint("Timeout reached for", name)
 
 
     # Close output files
