@@ -115,6 +115,14 @@ def is_busy(busy,):
     aprint("Not Busy - Network Usage:", fmt(net_usage), "Disk usage:", fmt(disk_usage))
     return False
 
+def is_idle(twatch,):
+    "Is the computer idle?"
+    if UA.idle and twatch.idle > UA.idle and shared.COMP.plugged_in():
+        return True
+    if UA.idlebatt and twatch.idle > UA.idlebatt and not shared.COMP.plugged_in():
+        return True
+    return False
+
 
 def read_line(line, warn_score=5):
     "Given a line delimited by tabs and spaces, convert it to 5 fields"
@@ -330,14 +338,14 @@ class ScriptManager:
 
     def run_scripts(self, twatch, polling_rate, flag=None):
         for proc in self.schedule_apps:
-            if UA.stagger and (time.time() - last_run) / 60 < UA.stagger:
+            if UA.stagger and (time.time() - self.last_run) / 60 < UA.stagger:
                 break
             if proc.ready(twatch, polling_rate, self.busy, flag=flag):
-                if UA.skip and time.time() - shared.START_TIME < UA.skip * 60:
+                if UA.skip and time.time() - shared.START_TIME < UA.skip * 60 and 'start' not in proc.reqs.reqs:
                     proc.run(twatch, testing_mode=UA.testing, skip_mode=True,)
                 else:
                     proc.run(twatch, testing_mode=UA.testing, skip_mode=False,)
-                    last_run = time.time()
+                    self.last_run = time.time()
 
 
     def read_schedule(self,):
@@ -431,13 +439,9 @@ def main(verbose=1):
         # Loop again to avoid edge case where the machine wakes up and is immediately put back to sleep
         while missing > 2 and missing > polling_rate / 10:
             if not just_slept:
-                sman.run_scripts(twatch, polling_rate, flag='wake')
+                just_slept = True
             missing = twatch.sleep(polling_rate)
         polling_rate = UA.polling
-
-        if just_slept:
-            sman.run_scripts(twatch, polling_rate, flag='wake')
-            just_slept = False
 
         # Check for a new day
         if time.localtime().tm_yday != cur_day:
@@ -448,6 +452,10 @@ def main(verbose=1):
             sleep_failed = 0
 
 
+        if just_slept:
+            sman.run_scripts(twatch, polling_rate, flag='wake')
+            just_slept = False
+
 
         sman.update()                               # Update schedule file if it's been updated
         sman.run_scripts(twatch, polling_rate)      # Run the scripts
@@ -456,15 +464,14 @@ def main(verbose=1):
         # Give up after sleep command fails too much, (messes up time calculations)
         if sleep_failed <= 3:
             # Put the computer to sleep after checking to make sure nothing is going on.
-            if (UA.idle and twatch.idle > UA.idle and shared.COMP.plugged_in()) or \
-               (UA.idlebatt and twatch.idle > UA.idlebatt and not shared.COMP.plugged_in()): # pylint: disable=R0916
+            if is_idle(twatch):
                 if not is_busy(busy):
                     # Run any sleep scripts:
                     sman.run_scripts(twatch, polling_rate, flag='sleep')
-                    just_slept = True
-
-                    if go2sleep(twatch):
+                    time.sleep(20)
+                    if is_idle(twatch) and go2sleep(twatch):
                         polling_rate = 2
+                        just_slept = True
                     else:
                         sleep_failed += 1
 
