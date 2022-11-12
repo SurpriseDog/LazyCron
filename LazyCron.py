@@ -315,12 +315,13 @@ def go2sleep(twatch):
 class ScriptManager:
     "Keep track of all the available scripts and when last run"
 
-    def __init__(self, busy, file):
+    def __init__(self, busy, twatch, file):
         self.schedule_apps = []                     # Apps found in schedule.txt
         self.schedule_file = file                   # Schedule File Name
         self.last_schedule_read = 0                 # Last time the schedule file was read
         self.last_run = 0                           # Time when the last program was started
         self.busy = busy
+        self.twatch = twatch
         self.alert = msgbox                         # Set function to send alerts
 
 
@@ -336,16 +337,17 @@ class ScriptManager:
             self.read_schedule()
 
 
-    def run_scripts(self, twatch, polling_rate, flag=None):
+    def run_scripts(self, polling_rate, flag=None):
         for proc in self.schedule_apps:
             if UA.stagger and (time.time() - self.last_run) / 60 < UA.stagger:
                 break
 
-            if proc.ready(twatch, polling_rate, self.busy, flag=flag):
+            if proc.ready(self.twatch) and proc.check_reqs(self.twatch, polling_rate, self.busy, flag=flag):
+
                 if UA.skip and time.time() - shared.START_TIME < UA.skip * 60 and 'start' not in proc.reqs.reqs:
-                    proc.run(twatch, testing_mode=UA.testing, skip_mode=True,)
+                    proc.run(self.twatch, testing_mode=UA.testing, skip_mode=True,)
                 else:
-                    proc.run(twatch, testing_mode=UA.testing, skip_mode=False,)
+                    proc.run(self.twatch, testing_mode=UA.testing, skip_mode=False,)
                     self.last_run = time.time()
 
 
@@ -425,7 +427,7 @@ def main(verbose=1):
     just_slept = False                      # Just woke up from sleep
 
     busy = Busy(expiration=max(UA.polling * 2.5, 60))
-    sman = ScriptManager(busy, UA.schedule) # Script Manager
+    sman = ScriptManager(busy, twatch, UA.schedule)     # Script Manager
 
 
     if UA.debug:
@@ -454,12 +456,12 @@ def main(verbose=1):
 
 
         if just_slept:
-            sman.run_scripts(twatch, polling_rate, flag='wake')
+            sman.run_scripts(polling_rate, flag='wake')
             just_slept = False
 
 
         sman.update()                               # Update schedule file if it's been updated
-        sman.run_scripts(twatch, polling_rate)      # Run the scripts
+        sman.run_scripts(polling_rate)      # Run the scripts
 
 
         # Give up after sleep command fails too much, (messes up time calculations)
@@ -468,7 +470,7 @@ def main(verbose=1):
             if is_idle(twatch):
                 if not is_busy(busy):
                     # Run any sleep scripts:
-                    sman.run_scripts(twatch, polling_rate, flag='suspend')
+                    sman.run_scripts(polling_rate, flag='suspend')
                     time.sleep(20)
                     if is_idle(twatch) and go2sleep(twatch):
                         polling_rate = 2

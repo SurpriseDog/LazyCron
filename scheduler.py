@@ -52,6 +52,7 @@ class Reqs:
                             retry=3,
                             loop=0,
                             lowbatt=10,
+                            minbatt=50,
                             shell=True,
                             wake=True,
                             suspend=True,
@@ -86,6 +87,8 @@ class Reqs:
                             low_batt='lowbatt',
                             batt='lowbatt',
                             battery='lowbatt',
+                            highbatt='minbatt',
+                            minbattery='minbatt',
                             wait='delay',
                             wifi='ssid',
                             sleep='suspend',
@@ -609,33 +612,13 @@ class App:
             aprint(*args, '::', self.name, )
 
 
-    def ready(self, twatch, polling_rate, busy, flag=None):
-        "Is the process ready to be run?, flags=special keywords to run script like: 'wake', 'suspend'"
-        now = time.time()
-
-        # Check if process is already running.
-        if self.thread and self.thread.is_alive():
-            self.alert("Still running!")
-            return False
-
-        if self.window or self.date_window:
-            if not self.in_window():
-                self.alert("Outside of time window")
-                return False
-
-        if self.next_run and now < self.next_run:
-            self.alert("Next run at", chronos.local_time(self.next_run))
-            return False
-
-        if self.elapsed_freq:
-            if twatch.elapsed < self.elapsed_next:
-                self.alert("Elapsed freq not reached")
-                return False
-
-
-        # Check App requirements.
+    def check_reqs(self, twatch, polling_rate, busy, flag=None):
+        '''Check App requirements, Return True if all okay
+           flag = special keywords to run script like: 'wake', 'suspend'
+        '''
         # Not a match statement. No increase in speed and breaks compatability with python versions < 3.10
         # Future maybe put if verbose > ? before each alert statement for optimization, but probably not needed
+
         reqs = self.reqs.reqs
         if reqs:
 
@@ -674,7 +657,7 @@ class App:
             if 'reps' in reqs:
 
                 # Start time if in window, otherwise midnight:
-                start = self.start if self.start else now - chronos.seconds_since_midnight()
+                start = self.start if self.start else time.time() - chronos.seconds_since_midnight()
                 count = len(self.history) - bisect.bisect_left(self.history, start)
 
                 # Fixed bug where skipped runs counted towards reps
@@ -712,6 +695,34 @@ class App:
                 return False
             if 'lowbatt' in reqs and shared.COMP.get_charge() > reqs.lowbatt:
                 self.alert("Battery too high")
+                return False
+            if 'minbatt' in reqs and shared.COMP.get_charge() < reqs.minbatt:
+                self.alert("Battery too low")
+                return False
+
+        return True
+
+
+    def ready(self, twatch):
+        "Is the process ready to be run?"
+
+        # Check if process is already running.
+        if self.thread and self.thread.is_alive():
+            self.alert("Still running!")
+            return False
+
+        if self.window or self.date_window:
+            if not self.in_window():
+                self.alert("Outside of time window")
+                return False
+
+        if self.next_run and time.time() < self.next_run:
+            self.alert("Next run at", chronos.local_time(self.next_run))
+            return False
+
+        if self.elapsed_freq:
+            if twatch.elapsed < self.elapsed_next:
+                self.alert("Elapsed freq not reached")
                 return False
 
         return True
