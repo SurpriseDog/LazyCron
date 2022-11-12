@@ -51,6 +51,7 @@ class Reqs:
                             start=1,
                             retry=3,
                             loop=0,
+                            lowbatt=10,
                             shell=True,
                             wake=True,
                             suspend=True,
@@ -82,6 +83,9 @@ class Reqs:
                             no_logs='nologs',
                             local_dir='localdir',
                             shut='closed',
+                            low_batt='lowbatt',
+                            batt='lowbatt',
+                            battery='lowbatt',
                             wait='delay',
                             wifi='ssid',
                             sleep='suspend',
@@ -183,7 +187,7 @@ class Reqs:
                 continue
             split = arg.lower().strip().split()
             arg = split[0].rstrip(':')
-            val = (' '.join(split[1:])).strip()
+            val = (' '.join(split[1:])).strip().rstrip('%')
             match = search_list(arg, self.reqs.keys(), get='first')
             if not match:
                 match = search_list(arg, self.aliases.keys(), get='first')
@@ -217,6 +221,7 @@ class Reqs:
             elif match in self.string_reqs:
                 val = val.strip("'").strip('"').strip()
             else:
+                # Numeric conversions
                 try:
                     val = int(val)
                 except ValueError:
@@ -704,6 +709,9 @@ class App:
                 return False
             if 'online' in reqs and not check_internet():
                 self.alert("Not Online")
+                return False
+            if 'lowbatt' in reqs and shared.COMP.get_charge() > reqs.lowbatt:
+                self.alert("Battery too high")
                 return False
 
         return True

@@ -16,7 +16,7 @@
 
 
 # Thread test, make sure process finishes before starting new one
-*                    4s              *                 *                            sleep 1m
+#*                    4s              *                 *                            sleep 1m
 
 # Timeout test
 #*                    *               *               timeout 10s, localdir         time sleep 1h
@@ -52,7 +52,7 @@
 # Oct-Feb should go from this year to the next.
 *                    *               Oct-Feb          *                             # year gap test
 11pm-2am             *               *                *                             # day gap test
-
+*                    *               *                lowbatt 88%                   msgbox low batt test
 
 
 

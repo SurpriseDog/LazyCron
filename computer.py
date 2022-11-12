@@ -63,12 +63,18 @@ class Computer:
             return True
 
     def get_capacity(self,):
+        "Battery max charge"
         if self._capacity:
             return read_val(self._capacity)
         else:
             return 0
 
+    def get_charge(self,):
+        "Battery percent left returned as percent x 100"
+        return self.get_capacity() / self.max_power * 100
+
     def get_ssid(self,):
+        "Current Wifi Network"
         ssid = quickrun('iwgetid', '-r', hidewarning=True,)
         if ssid:
             return ssid[0].strip()
@@ -85,9 +91,13 @@ class Computer:
             return True
 
     def status(self,):
+        "Testing all functions"
         print("Lid open:", self.lid_open())
         print("Plugged in:", self.plugged_in())
-        print("Batt Capacity:", self.get_capacity())
+        print("Battery Capacity:", self.get_capacity())
+        print("Battery Max Power:", self.max_power)
+        print("Charge:", int(self.get_charge()))
+        print("SSID:", self.get_ssid())
 
 
 if __name__ == "__main__":

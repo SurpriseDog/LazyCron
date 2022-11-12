@@ -80,6 +80,7 @@ Examples: m-f, every 2nd Thursday
 | `online` | Do we have internet access? |
 | `closed/open` | Lid must be closed. |
 | `(un)plugged` | Power cord must be attached. |
+| `lowbatt` | Run if the battery percentage falls below a certain percentage. |
 | `disk` | Maximum current disk usage to start process, expressed in KB/s |
 | `cpu` | Maximum current cpu usage to start process, expressed as a percentage of combined cpu power. |
 | `network` | Maximum current network usage to start process, expressed as KB/s |
