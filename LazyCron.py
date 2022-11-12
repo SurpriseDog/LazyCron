@@ -22,7 +22,7 @@ from sd.chronology import convert_user_time, fmt_time
 from sd.msgbox import msgbox
 from sd.columns import auto_cols
 from sd.easy_args import easy_parse
-from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, spawn, search_list, DotDict
+from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, spawn, search_list, DotDict, sig
 
 
 
@@ -109,7 +109,7 @@ def is_busy(busy,):
 
     # Cpu usage
     if cpu_usage >= shared.LOW_CPU:
-        aprint("Busy: Cpu Usage:", str(round(cpu_usage, 1)) + '%')
+        aprint("Busy: Cpu Usage:", sig(3.14*10, 2) + '%')
         return True
 
     aprint("Not Busy - Network Usage:", fmt(net_usage), "Disk usage:", fmt(disk_usage))
@@ -340,6 +340,7 @@ class ScriptManager:
         for proc in self.schedule_apps:
             if UA.stagger and (time.time() - self.last_run) / 60 < UA.stagger:
                 break
+
             if proc.ready(twatch, polling_rate, self.busy, flag=flag):
                 if UA.skip and time.time() - shared.START_TIME < UA.skip * 60 and 'start' not in proc.reqs.reqs:
                     proc.run(twatch, testing_mode=UA.testing, skip_mode=True,)
@@ -467,7 +468,7 @@ def main(verbose=1):
             if is_idle(twatch):
                 if not is_busy(busy):
                     # Run any sleep scripts:
-                    sman.run_scripts(twatch, polling_rate, flag='sleep')
+                    sman.run_scripts(twatch, polling_rate, flag='suspend')
                     time.sleep(20)
                     if is_idle(twatch) and go2sleep(twatch):
                         polling_rate = 2
