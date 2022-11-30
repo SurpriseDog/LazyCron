@@ -46,6 +46,7 @@ def parse_args():
     ['testing', '', bool],
     "Do everything, but actually run the scripts.",
     ['logs', '', str, '/tmp/LazyCron_logs'],
+    "What folder to put the log files in.",
     ['reqs', '', str],
     '''
     Apply requirements to all processes (will not override existing reqs)
@@ -114,6 +115,7 @@ def is_busy(busy,):
 
     aprint("Not Busy - Network Usage:", fmt(net_usage), "Disk usage:", fmt(disk_usage))
     return False
+
 
 def is_idle(twatch,):
     "Is the computer idle?"
@@ -324,6 +326,9 @@ class ScriptManager:
         self.twatch = twatch
         self.alert = msgbox                         # Set function to send alerts
 
+        self.sleep_procs = []                       # List of procs ran on suspend
+        self.sleep_check = 0                        # Last time sleepy_time was called
+
 
     def update(self,):
         "Check schedule file and update if new"
@@ -337,7 +342,52 @@ class ScriptManager:
             self.read_schedule()
 
 
+    def sleepy_time(self, polling_rate):
+        "Run scripts with sleep flag, return True if ready to sleep"
+        now = time.time()
+        ret = False
+
+        if self.sleep_check and now - self.sleep_check >= polling_rate * 10:
+            # If there is too much time between sleepy_time calls then reset.
+            self.sleep_procs = []
+            self.sleep_check = 0
+
+        # From previous run
+        if self.sleep_procs:
+            # If too much time has elapsed
+            if now - self.sleep_check > 600:
+                ret = True
+            else:
+                # Go through each sleep proc and see if done
+                for proc in self.sleep_procs:
+                    if proc.running():
+                        break
+                else:
+                    ret = True
+
+        # New run
+        else:
+            procs = self.run_scripts(polling_rate, flag='suspend')
+            if not procs:
+                ret = True
+            else:
+                self.sleep_procs = procs
+                self.sleep_check = now
+
+
+        # Return True if ready to sleep
+        if ret:
+            self.sleep_procs = []
+            self.sleep_check = 0
+            return True
+        else:
+            return False
+
+
     def run_scripts(self, polling_rate, flag=None):
+        "Attempt to run all of the scripts in schedule"
+
+        started = []
         for proc in self.schedule_apps:
             if UA.stagger and (time.time() - self.last_run) / 60 < UA.stagger:
                 break
@@ -345,10 +395,16 @@ class ScriptManager:
             if proc.ready(self.twatch) and proc.check_reqs(self.twatch, polling_rate, self.busy, flag=flag):
 
                 if UA.skip and time.time() - shared.START_TIME < UA.skip * 60 and 'start' not in proc.reqs.reqs:
-                    proc.run(self.twatch, testing_mode=UA.testing, skip_mode=True,)
+                    result = proc.run(self.twatch, testing_mode=UA.testing, skip_mode=True,)
                 else:
-                    proc.run(self.twatch, testing_mode=UA.testing, skip_mode=False,)
+                    result = proc.run(self.twatch, testing_mode=UA.testing, skip_mode=False,)
+
+                if result:
+                    started.append(proc)
                     self.last_run = time.time()
+        return started
+
+
 
 
     def read_schedule(self,):
@@ -463,20 +519,16 @@ def main(verbose=1):
         sman.update()                               # Update schedule file if it's been updated
         sman.run_scripts(polling_rate)      # Run the scripts
 
-
         # Give up after sleep command fails too much, (messes up time calculations)
         if sleep_failed <= 3:
             # Put the computer to sleep after checking to make sure nothing is going on.
-            if is_idle(twatch):
-                if not is_busy(busy):
-                    # Run any sleep scripts:
-                    sman.run_scripts(polling_rate, flag='suspend')
-                    time.sleep(20)
-                    if is_idle(twatch) and go2sleep(twatch):
-                        polling_rate = 2
-                        just_slept = True
-                    else:
-                        sleep_failed += 1
+            if is_idle(twatch) and not is_busy(busy):
+                # Run any sleep scripts:
+                if sman.sleepy_time(polling_rate) and go2sleep(twatch):
+                    polling_rate = 2
+                    just_slept = True
+                else:
+                    sleep_failed += 1
 
 
 

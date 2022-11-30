@@ -144,10 +144,13 @@ You can get these by typing: `sudo apt install xprintidle sysstat`
 
 Not sure if your schedule will work correctly? Run the program with the --testing option or just put a `##` before each script path to show what it would do. Logs are kept in /tmp/LazyCron_logs
 
-## Bonus functionality:
+## Smart suspend management:
 
+`--idle (minutes)` - Go to sleep after so many minutes while plugged in.
+`--idlebatt (minutes)` - Go to sleep after so many minutes on battery power.
 
-`--idle (minutes)` will put the computer to sleep after so many minutes. If plugged in, it will check first to make sure you don't have any disk or network activity. I find this more useful than using the default sleep timer, which will put the computer to sleep regardless of what's going on (e.g. it's in the middle of a long, slow file download or file copy operation).
+  * It will check first to make sure you don't have any disk or network activity. - I find this more useful than using the default sleep timer, which will put the computer to sleep regardless of what's going on (e.g. it's in the middle of a long, slow file download or file copy operation).
+  * Add programs with `suspend` option to the `Requirements` list in order to run them on before suspend. - LC will wait 1 cycle after running a suspend program before putting the computer to sleep. If the computer shows activity in this period, the sleep will be cancelled.
 
 ## Troubleshooting:
 

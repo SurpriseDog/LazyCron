@@ -119,7 +119,7 @@ class Reqs:
         self.inversions = dict(unplugged='plugged', open='closed')
 
         # Needed programs to use named reqs
-        self.needed = dict(cpu='mpstat', network='sar', disk='iostat')
+        self.needed = dict(network='sar', disk='iostat')
         assert all([key in self.reqs for key in self.needed])
 
         #
@@ -760,8 +760,10 @@ class App:
             testing_mode = True
         if testing_mode:
             text = "Did not start process"
+            started = False
         else:
             text = "Started process"
+            started = True
             filename = safe_filename(self.name + '.' + str(int(now)))
             _, self.thread = spawn(run_thread,
                                    self.cmd,
@@ -773,6 +775,7 @@ class App:
         self.alert(text, v=1)
         if self.verbose >= 2:
             self.show_history()
+        return started
 
 
 def run_thread(cmd, log, reqs, name):

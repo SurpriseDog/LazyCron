@@ -34,6 +34,9 @@ def is_device_busy(dev, wait=2, reps=4, verbose=0):
     return int(avg(usage[1:]) * 1024)
 
 
+
+
+
 def all_disk_usage(wait=2, reps=4, verbose=0, ignore_links=True):
     '''Return total i/o for all devices in Bytes / second
     ignore_links will ignore loop and dm-? devs for total'''
@@ -86,6 +89,8 @@ def get_cpu_usage(interval=1, samples=4):
     out = quickrun(['mpstat', interval, samples])
     idle = out[-1].split()[-1]
     return 100 - float(idle)
+
+
 
 
 def find_device(folder):
