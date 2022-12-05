@@ -10,20 +10,31 @@ import re
 import time
 import shutil
 import traceback
+import importlib
 
 import shared
 import scheduler
 
+
 from shared import aprint
 from timewatch import TimeWatch
-from how_busy import Busy
 from sd.chronology import convert_user_time, fmt_time
 
 from sd.msgbox import msgbox
 from sd.columns import auto_cols
 from sd.easy_args import easy_parse
-from sd.common import itercount, gohome, check_install, rfs, mkdir, warn, spawn, search_list, DotDict, sig
+from sd.common import itercount, gohome, rfs, mkdir, warn, spawn, search_list, DotDict, sig
 
+
+# Choose which functions to import based on what's available:
+if importlib.util.find_spec("psutil"):
+    import how_busy_psutil as how_busy
+else:
+    import how_busy_linux as how_busy       # Returns 0 if system utility not available
+    if shared.PLATFORM == 'linux':
+        print("psutil not available... using linux system utilities.")
+    else:
+        print("Please install psutil to get system monitoring.")
 
 
 def parse_args():
@@ -81,6 +92,49 @@ def parse_args():
         args.verbose = 2
 
     return DotDict(vars(args))
+
+
+class Busy:
+    "Poll the system to see if system is busy, returns None if value not ready yet"
+    def __init__(self, expiration=100):
+        self.expiration = expiration        # How long to keep values before querying again
+        self.net = DotDict(que=None, thread=None, timestamp=0, value=None,)
+        self.disk = DotDict(que=None, thread=None, timestamp=0, value=None,)
+        self.cpu = DotDict(que=None, thread=None, timestamp=0, value=None,)
+
+    def get_net(self, *args, **kargs):
+        return self._query(self.net, how_busy.get_network_usage, *args, **kargs)
+
+    def get_disk(self, *args, **kargs):
+        return self._query(self.disk, how_busy.all_disk_usage, *args, **kargs)
+
+    def get_cpu(self, *args, **kargs):
+        return self._query(self.cpu, how_busy.get_cpu_usage, *args, **kargs)
+
+
+    def _query(self, vals, cmd, *args, **kargs):
+        "Return a value if available, otherwise start a thread and return None while we wait"
+        now = time.time()
+        if now - vals.timestamp <= self.expiration:
+            # print("Found existing value", vals.value)
+            return vals.value
+        else:
+            if not vals.thread:
+                # Start a thread
+                # print("Spawning thread to check value")
+                vals.que, vals.thread = spawn(cmd, *args, **kargs)
+                return None
+            else:
+                # Check existing thread to see if it's done
+                if vals.thread.is_alive():
+                    # print("Thread still running")
+                    return None
+                else:
+                    vals.thread = None
+                    vals.value = vals.que.get()
+                    # print("Value ready:", vals.value)
+                    vals.timestamp = now
+                    return vals.value
 
 
 def is_busy(busy,):
@@ -534,14 +588,8 @@ def main(verbose=1):
 
 
 
-
-
 if __name__ == "__main__":
     UA = parse_args()
-    if UA.idle:
-        check_install('iostat', 'sar',
-                      msg='''sudo apt install sysstat sar
-                      --idle requires iostat () to determine if the computer can be put to sleep.''')
     # Min level to print messages:
     shared.VERBOSE = UA.verbose
     shared.LOG_DIR = UA.logs
