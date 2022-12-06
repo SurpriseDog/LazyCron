@@ -21,7 +21,7 @@ for cmd, msg in dict(mpstat='CPU monitoring will not function.',
                      iostat='Disk usage monitor will not function.',
                      ).items():
     if not shutil.which(cmd):
-        print('Warning!', cmd, 'is not AVAIL.', msg)
+        print('Warning!', cmd, 'is not available.', msg)
         AVAIL[cmd] = False
     else:
         AVAIL[cmd] = True

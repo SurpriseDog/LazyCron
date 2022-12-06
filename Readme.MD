@@ -128,12 +128,10 @@ Examples: m-f, every 2nd Thursday
 
 ## Installation:
 
-The following utilities are required:
+xprintidle` is required to get the number of seconds computer has been idle.
 
-  * `xprintidle` to get the number of seconds computer has been idle.
-  * `sysstat` package to get iostat which is used to measure disk activity before putting computer to sleep.
+To use the system monitoring utilities for the `cpu`, `network` or `disk` flags please install psutil with: `python3 -m pip install psutil`
 
-You can get these by typing: `sudo apt install xprintidle sysstat`
 
 
 ## Usage:

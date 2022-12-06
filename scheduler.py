@@ -754,7 +754,7 @@ class App:
         reqs = self.reqs.reqs
         if 'skip' in reqs and len(self.history) <= reqs.skip:
             self.alert("Skip", len(self.history), 'of', reqs.skip, v=2)
-            return
+            return False
 
         if self.cmd[0].lstrip().startswith('#'):
             testing_mode = True

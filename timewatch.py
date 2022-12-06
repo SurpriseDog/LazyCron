@@ -7,17 +7,17 @@ import shared
 from sd.common import warn
 from sd.chronology import local_time, fmt_time, msleep
 
-
+PLATFORM = shared.PLATFORM
 
 
 
 def get_idle():
     "Run a command to get the system idle time"
-    if shared.PLATFORM == 'linux':
+    if PLATFORM == 'linux':
         val = subprocess.run('xprintidle', check=True, stdout=subprocess.PIPE)
         return float(val.stdout.strip()) / 1000
     else:
-        warn("Can't fetch idle on Unknown platform", shared.PLATFORM)
+        warn("Can't fetch idle on Unknown platform", PLATFORM)
         return 0
 
 
@@ -104,13 +104,16 @@ class TimeWatch:
 
     def sleepy_time(self,):
         "Go to sleep without causing unaccounted for time"
-        # quickrun('systemctl', 'suspend')
-        ret = subprocess.run(('systemctl', 'suspend'), check=False)
-        self._inuse_start = 0
-        self.idle = 0
-        if ret.returncode:
+        if PLATFORM == 'linux':
+            ret = subprocess.run(('systemctl', 'suspend'), check=False)
+            self._inuse_start = 0
+            self.idle = 0
+            if ret.returncode:
+                return False
+            return True
+        else:
+            warn("WARNING! Suspend not implemented for non linux OS.")
             return False
-        return True
 
 
 def _tester():
