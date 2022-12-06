@@ -4,11 +4,11 @@ import time
 import subprocess
 
 import shared
-from sd.common import warn
+from sd.common import warn, check_install
 from sd.chronology import local_time, fmt_time, msleep
 
 PLATFORM = shared.PLATFORM
-
+check_install('xprintidle', msg="sudo apt install xprintidle")
 
 
 def get_idle():
@@ -16,6 +16,7 @@ def get_idle():
     if PLATFORM == 'linux':
         val = subprocess.run('xprintidle', check=True, stdout=subprocess.PIPE)
         return float(val.stdout.strip()) / 1000
+    # mac time: ioreg -c IOHIDSystem    # (cant test)
     else:
         warn("Can't fetch idle on Unknown platform", PLATFORM)
         return 0

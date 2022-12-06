@@ -29,6 +29,5 @@ if sys.platform.startswith('win'):
     warn("Windows implementation not implemented")
 elif sys.platform.startswith('linux'):
     PLATFORM = 'linux'
-    check_install('xprintidle', msg="sudo apt install xprintidle")
 else:
     warn("Unknown computer system:", sys.platform)

@@ -128,9 +128,9 @@ Examples: m-f, every 2nd Thursday
 
 ## Installation:
 
-xprintidle` is required to get the number of seconds computer has been idle.
+`xprintidle` is required to get the number of seconds computer has been idle.
 
-To use the system monitoring utilities for the `cpu`, `network` or `disk` flags please install psutil with: `python3 -m pip install psutil`
+To use the system monitoring utilities for the `cpu`, `network` or `disk` flags; please install `psutil` with: `python3 -m pip install psutil`
 
 
 
