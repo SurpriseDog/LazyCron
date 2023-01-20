@@ -27,6 +27,9 @@ def aprint(*args, v=1, header='\n', **kargs):
 if sys.platform.startswith('win'):
     PLATFORM = 'windows'
     warn("Windows implementation not implemented")
+elif sys.platform.startswith('mac'):
+    PLATFORM = 'mac'
+    warn("mac implementation not implemented")
 elif sys.platform.startswith('linux'):
     PLATFORM = 'linux'
 else:

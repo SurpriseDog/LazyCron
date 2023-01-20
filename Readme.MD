@@ -112,6 +112,7 @@ Examples: m-f, every 2nd Thursday
 | | |
 | `nice` | Start script with unix nice value. Higher values are nicer to other processes |
 | `nologs` | Delete logs if script returns code `0` (all okay) |
+| `noerrs` | Don't alert on any script errors |
 | `localdir` | Run a script from the same directory that it's in. |
 | `timeout` | Time to allow the script to run before killing it. |
 | `environs` | Set environmental variables before starting.  <br /> Format : `environs VAL1=TEXT $ VAL2=TEXT` (seperate variables with $) |

@@ -62,6 +62,7 @@ class Reqs:
                             delaymult=2,
                             timeout=3600,
                             nologs=True,
+                            noerrs=True,
                             localdir=True,
                             online=True,
                             today=10 * 60,
@@ -91,6 +92,9 @@ class Reqs:
                             minbattery='minbatt',
                             wait='delay',
                             wifi='ssid',
+                            noerrors='noerrs',
+                            no_errs='noerrs',
+                            no_errors='noerrs',
                             sleep='suspend',
                             slept='suspend',
                             unsuspend='wake',
@@ -806,9 +810,10 @@ def run_thread(cmd, log, reqs, name):
     def send_msg():
         "Send message on error (only once)"
         if code and messages_sent < 1:
-            print()
-            warn(name, "\nReturned code", code, "\nErrors in:", log)
-            quickrun('sd/msgbox.py', name, "returned code", str(code))
+            if not reqs('noerrs'):
+                print()
+                warn(name, "\nReturned code", code, "\nErrors in:", log)
+                quickrun('sd/msgbox.py', name, "returned code", str(code))
             return 1
         return 0
 
