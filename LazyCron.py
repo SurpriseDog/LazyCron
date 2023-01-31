@@ -570,7 +570,7 @@ def main(verbose=1):
             just_slept = False
 
 
-        sman.update()                               # Update schedule file if it's been updated
+        sman.update()                       # Update schedule file if it's been updated
         sman.run_scripts(polling_rate)      # Run the scripts
 
         # Give up after sleep command fails too much, (messes up time calculations)

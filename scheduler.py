@@ -812,7 +812,8 @@ def run_thread(cmd, log, reqs, name):
         if code and messages_sent < 1:
             if not reqs('noerrs'):
                 print()
-                warn(name, "\nReturned code", code, "\nErrors in:", log)
+                warn(name, "\nReturned code", code)
+                warn("Errors in:", efilename)
                 quickrun('sd/msgbox.py', name, "returned code", str(code))
             return 1
         return 0
@@ -824,7 +825,7 @@ def run_thread(cmd, log, reqs, name):
             loopdelay *= delaymult
 
         # Code = None if terminated early, 0 on success, [Any other integer] on error
-        code, elapsed = run_proc(cmd, log, reqs, name, attempt=counter)
+        code, elapsed, efilename = run_proc(cmd, log, reqs, name, attempt=counter)
 
         # Run this script again if requested (does not count toward reps)
         if retry:
@@ -932,7 +933,7 @@ def run_proc(cmd, log, reqs, name, attempt):
         if not eflag:
             os.remove(efilename)
 
-    return code, elapsed
+    return code, elapsed, efilename
 
 
 def compress_logs(dirname, minimum=5, month=-1, overwrite=False, exts=('.log', '.err')):

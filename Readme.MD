@@ -95,7 +95,7 @@ Examples: m-f, every 2nd Thursday
 | `max` | Maximum number of times to run a script. |
 | `reps` | Only run so many times per day or per window of time. |
 | `delay` | Delay before starting script |
-| `suspend` | Run script on suspend (if trigged by script with --idle option) |
+| `suspend` | Run script on suspend (if trigged by script with a --idle option) |
 | `wake` | Run script on wake after suspend |
 | `random` | Script will run randomly <br /> Example: random 8h will (on average) run every 8 hours.<br />Some days it might run 5+ times, other days not at all. <br />That's how [randomness works.](https://math.stackexchange.com/q/209987/693067) |
 | | |
