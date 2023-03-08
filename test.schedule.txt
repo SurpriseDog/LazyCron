@@ -52,8 +52,4 @@
 # Oct-Feb should go from this year to the next.
 *                    *               Oct-Feb          *                             # year gap test
 11pm-2am             *               *                *                             # day gap test
-*                    *               *                minbatt 50%                   msgbox min batt test
-
-
-
-# reset;./LazyCron.py test.schedule.txt -v --polling 2s --debug
+#*                    *              *                minbatt 50%                   msgbox min batt test

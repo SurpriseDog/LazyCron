@@ -13,11 +13,11 @@ import traceback
 import importlib
 
 import shared
+import timewatch
 import scheduler
 
 
 from shared import aprint
-from timewatch import TimeWatch
 from sd.chronology import convert_user_time, fmt_time
 
 from sd.msgbox import msgbox
@@ -530,7 +530,7 @@ class ScriptManager:
 
 def main(verbose=1):
     polling_rate = 0                        # Time to rest at the end of every loop
-    twatch = TimeWatch(verbose=verbose)
+    twatch = timewatch.TimeWatch(verbose=verbose)
 
     cur_day = time.localtime().tm_yday      # Used for checking for new day
     sleep_failed = 0                        # Number of times Sleep command failed.
@@ -590,6 +590,7 @@ def main(verbose=1):
 
 if __name__ == "__main__":
     UA = parse_args()
+    timewatch.verify()
     # Min level to print messages:
     shared.VERBOSE = UA.verbose
     shared.LOG_DIR = UA.logs

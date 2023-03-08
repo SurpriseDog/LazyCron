@@ -70,7 +70,7 @@ class Reqs:
                             ssid="",
                             max=0,
                             reps=1,
-                            nice=5,
+                            nice=8,
                             disk=shared.LOW_DISK,
                             network=shared.LOW_NET,
                             cpu=shared.LOW_CPU,

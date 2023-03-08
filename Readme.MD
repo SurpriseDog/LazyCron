@@ -157,6 +157,13 @@ Not sure if your schedule will work correctly? Run the program with the --testin
 
   * Make sure the Frequency field has a `0` in it not a `*`
 
+
+**xprintidle couldn't open diplay**
+
+  * If starting LazyCron from `crontab` or other non GUI terminal, you must export display first. For example, run `export DISPLAY=:0`
+  * If running over `ssh` make sure to attach to the session with the -X flag: `ssh -X` Also setup X11 forwarding with `X11Forwarding yes` in `/etc/ssh/sshd_config` and restart ssh.
+
+
 **How do I get messages on the desktop if a program fails?**
 
 

@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import sys
 import time
 import subprocess
 
@@ -8,14 +9,33 @@ from sd.common import warn, check_install
 from sd.chronology import local_time, fmt_time, msleep
 
 PLATFORM = shared.PLATFORM
-check_install('xprintidle', msg="sudo apt install xprintidle")
+
+
+def verify():
+    "Verify that the system is working"
+    check_install('xprintidle', msg="sudo apt install xprintidle")
+    for test in range(3):
+        if not subprocess.run('xprintidle', check=False).returncode:
+            break
+        if test == 0:
+            print("xprintidle not working, read FAQ in Readme file for more information.")
+        time.sleep(1)
+    else:
+        sys.exit(1)
+    return True
+
+
 
 
 def get_idle():
     "Run a command to get the system idle time"
     if PLATFORM == 'linux':
-        val = subprocess.run('xprintidle', check=True, stdout=subprocess.PIPE)
-        return float(val.stdout.strip()) / 1000
+        ret = subprocess.run('xprintidle', check=False, stdout=subprocess.PIPE)
+        if ret.returncode:
+            print("xprintidle failed, using '0' as idle time.")
+            return 0
+        else:
+            return float(ret.stdout.strip()) / 1000
     # mac time: ioreg -c IOHIDSystem    # (cant test)
     else:
         warn("Can't fetch idle on Unknown platform", PLATFORM)
