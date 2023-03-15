@@ -15,7 +15,7 @@ def verify():
     "Verify that the system is working"
     check_install('xprintidle', msg="sudo apt install xprintidle")
     for test in range(3):
-        if not subprocess.run('xprintidle', check=False).returncode:
+        if not subprocess.run('xprintidle', check=False, stdout=subprocess.PIPE).returncode:
             break
         if test == 0:
             print("xprintidle not working, read FAQ in Readme file for more information.")

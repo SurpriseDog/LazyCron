@@ -4,11 +4,9 @@
 
 ################################################################################
 
-
 import os
 import re
 import time
-import shutil
 import traceback
 import importlib
 
@@ -16,15 +14,12 @@ import shared
 import timewatch
 import scheduler
 
-
 from shared import aprint
 from sd.chronology import convert_user_time, fmt_time
-
 from sd.msgbox import msgbox
 from sd.columns import auto_cols
 from sd.easy_args import easy_parse
 from sd.common import itercount, gohome, rfs, mkdir, warn, spawn, search_list, DotDict, sig
-
 
 # Choose which functions to import based on what's available:
 if importlib.util.find_spec("psutil"):
@@ -588,7 +583,6 @@ def main(verbose=1):
                     just_slept = True
                 else:
                     sleep_failed += 1
-
 
 
 
