@@ -46,8 +46,8 @@ def quickrun(*cmd, check=True, encoding='utf-8', errors='replace', mode='w', std
     # Checks
     if printme and trifecta:
         error("quickrun cant use both printme and trifecta")
-    if hidewarning and not check:
-        error("Printing errors makes no sense when check=False")
+    if hidewarning and check:
+        error("Printing errors makes no sense when check=True")
 
     # Build command
     cmd = list(map(str, flatten(cmd)))

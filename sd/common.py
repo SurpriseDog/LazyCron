@@ -8,60 +8,50 @@ import sys
 import math
 import time
 import queue
-import shutil
 import random
 import socket
+import shutil
 import threading
-import subprocess
 from urllib.parse import urlparse
 
 
-def quote(text):
-    "Wrap a string in the minimum number of quotes to be quotable"
-    for q in ('"', "'", "'''"):
-        if q not in text:
-            break
-    else:
-        return repr(text)
-    if "\n" in text:
-        q = "'''"
-    return q + text + q
+def check_install(*programs, msg='', quitonerr=True):
+    '''Check if program is installed (and reccomend procedure to install)
+    programs is the list of programs to test
+    prints msg if it can't find any and returns False'''
 
-
-def set_volume(level=80):
-    "Set computer master volume"
-    srun("amixer -D pulse sset Master " + str(level) + "% on")
-
-
-def srun(*cmds, **kargs):
-    "Split all text before quick run"
-    return quickrun(flatten([str(item).split() for item in cmds]), **kargs)
-
-
-def get_volume():
-    cur_level = []
-    for line in srun('amixer -D pulse'):
-        if 'Playback' in line and '%' in line:
-            cur_level.append(int(re.split('[\\[\\]]', line)[1][:-1]))
-    return int(sum(cur_level) / len(cur_level))
-
-
-def play(filename, volume=80, player='', opts='', **kargs):
-    '''Set the volume, play an audio file and then reset the volume to previous level
-    Passes other args onto run'''
-    current_vol = get_volume()
-    set_volume(volume)
-
-    ext = os.path.splitext(filename)[-1][1:].lower()
-    if not player:
-        if ext in ('ogg',):
-            player = 'ogg123'
-        elif ext in ('mp3',):
-            player = 'mpg123'
+    errors = 0
+    for program in programs:
+        paths = shutil.which(program)
+        if not paths:
+            errors += 1
+            print('\n')
+            print(program, 'is not installed.')
+    if errors:
+        if msg:
+            if type(msg) == str:
+                print("To install type:", msg)
+            else:
+                print("To install type:")
+                for m in msg:
+                    print('\t' + m)
         else:
-            player = 'mpv'  # 'aplay'
-    quickrun(player, opts, filename, **kargs)
-    set_volume(current_vol)
+            print("Please install to continue...")
+        if quitonerr:
+            sys.exit(1)
+        return False
+    return True
+
+
+def list_get(lis, index, default=''):
+    '''Fetch a value from a list if it exists, otherwise return default
+    Now accepts negative indexes'''
+
+    length = len(lis)
+    if -length <= index < length:
+        return lis[index]
+    else:
+        return default
 
 
 def map_nested(func, array):
@@ -169,9 +159,142 @@ def unique_filename(filename):
     return filename + str(extra) + ext
 
 
-def search_list(expr, the_list, get='list', func='match', ignorecase=True, searcher=None):
+def qwarn(*args, header="\n\nWarning:", sep=' '):
+    "Quick warn for scripts without delay"
+    msg = undent(sep.join(list(map(str, args))))
+    eprint(msg, header=header, v=2)
+
+
+def check_internet(timeout=8, tries=1):
+    "Check internet connection, return True if on"
+    ips = ['8.8.8.8', '8.8.4.4', '1.1.1.1']
+    for tri in range(tries):
+        if tri:
+            time.sleep(2)
+        ip = random.choice(ips)
+        try:
+            socket.create_connection((ip, 53), timeout)
+            return True
+        except OSError:
+            pass
+    return False
+
+
+def error(*args, header='\nError:', err=RuntimeError, **kargs):
+    eprint(*args, header=header, v=3, **kargs)
+    raise err
+
+
+def safe_filename(filename, src="/ ", dest="-_", no_http=True, length=200,
+                  forbidden='''*?\\/:<>|'"''', replacement='.'):
+    '''Convert urls and the like to safe filesystem names
+    src, dest is the character translation table
+    length is the max length allowed, set to 200 so rdiff-backup doesn't get upset
+    forbidden characters are replaced with the replacement character'''
+    if no_http:
+        if filename.startswith("http") or filename.startswith("www."):
+            netloc = urlparse(filename).netloc
+            filename = filename[filename.find(netloc):]
+            filename = re.sub("^www\\.", "", filename)
+            filename = filename.strip('/')
+    filename = filename.translate(filename.maketrans(src, dest)).strip()
+    return ''.join(c if c not in forbidden else replacement for c in filename.strip())[:length]
+
+
+def flatten(tree):
+    "Flatten a nested list, tuple or dict of any depth into a flat list"
+    # For big data sets use this: https://stackoverflow.com/a/45323085/11343425
+    out = []
+    if isinstance(tree, dict):
+        for key, val in tree.items():
+            if type(val) in (list, tuple, dict):
+                out += flatten(val)
+            else:
+                out.append({key: val})
+
+    else:
+        for item in tree:
+            if type(item) in (list, tuple, dict):
+                out += flatten(item)
+            else:
+                out.append(item)
+    return out
+
+
+def sorted_array(array, column=-1, reverse=False):
+    "Return sorted 2d array line by line"
+    pairs = [(line[column], index) for index, line in enumerate(array)]
+    for _val, index in sorted(pairs, reverse=reverse):
+        # print(index, val)
+        yield array[index]
+
+
+def avg(lis):
+    "Average a list"
+    return sum(lis) / len(lis)
+
+
+def read_file(filename):
+    "Read an entire file into text"
+    with open(filename, 'r') as f:
+        return f.read()
+
+
+def read_val(file):
+    "Read a number from an open file handle"
+    file.seek(0)
+    return int(file.read())
+
+
+class DotDict(dict):
+    '''
+    Example:
+    m = dotdict({'first_name': 'Eduardo'}, last_name='Pool', age=24, sports=['Soccer'])
+
+    Modified from:
+    https://stackoverflow.com/questions/2352181/how-to-use-a-dot-to-access-members-of-dictionary
+    to set unlimited chained .variables like DotDict().tom.bob = 3
+    '''
+
+    def __init__(self, *args, **kwargs):
+        super(DotDict, self).__init__(*args, **kwargs)
+        for arg in args:
+            if isinstance(arg, dict):
+                for k, v in arg.items():
+                    self[k] = v
+
+        if kwargs:
+            for k, v in kwargs.items():
+                self[k] = v
+
+    def __getattr__(self, attr):
+        if attr in self:
+            return self.get(attr)
+        else:
+            self[attr] = DotDict()
+            return self[attr]
+
+    def __setattr__(self, key, value):
+        self.__setitem__(key, value)
+
+    def __contains__(self, key):
+        return bool(key in self.__dict__)
+
+    def __setitem__(self, key, value):
+        super(DotDict, self).__setitem__(key, value)
+        self.__dict__.update({key: value})
+
+    def __delattr__(self, item):
+        self.__delitem__(item)
+
+    def __delitem__(self, key):
+        super(DotDict, self).__delitem__(key)
+        del self.__dict__[key]
+
+
+def search_list(expr, the_list, get='all', func='match', ignorecase=True, searcher=None):
     '''Search for expression in each item in list (or dictionary!)
-    get = 'list'    = Return all items found <Default>
+    get = 'all'     = Return all items found <Default>
           'first'   = Return the first value found, otherwise None
           'only'    = Return only one item, error if more
           'exactly' = Return one item, error if more or less than one
@@ -231,47 +354,6 @@ def search_list(expr, the_list, get='list', func='match', ignorecase=True, searc
     return output
 
 
-def crop(text, cut=64, ending='...'):
-    "Crop text down a length with ending..."
-    if len(text) <= cut:
-        return text
-    else:
-        cut -= len(ending)
-        cut = 0 if cut < 0 else cut
-        return text[:cut] + ending
-
-
-def check_internet(timeout=8, tries=1):
-    "Check internet connection, return True if on"
-    ips = ['8.8.8.8', '8.8.4.4', '1.1.1.1']
-    for tri in range(tries):
-        if tri:
-            time.sleep(2)
-        ip = random.choice(ips)
-        try:
-            socket.create_connection((ip, 53), timeout)
-            return True
-        except OSError:
-            pass
-    return False
-
-
-def safe_filename(filename, src="/ ", dest="-_", no_http=True, length=200,
-                  forbidden='''*?\\/:<>|'"''', replacement='.'):
-    '''Convert urls and the like to safe filesystem names
-    src, dest is the character translation table
-    length is the max length allowed, set to 200 so rdiff-backup doesn't get upset
-    forbidden characters are replaced with the replacement character'''
-    if no_http:
-        if filename.startswith("http") or filename.startswith("www."):
-            netloc = urlparse(filename).netloc
-            filename = filename[filename.find(netloc):]
-            filename = re.sub("^www\\.", "", filename)
-            filename = filename.strip('/')
-    filename = filename.translate(filename.maketrans(src, dest)).strip()
-    return ''.join(c if c not in forbidden else replacement for c in filename.strip())[:length]
-
-
 def spawn(func, *args, daemon=True, delay=0, **kargs):
     '''Spawn a function to run seperately and return the que
     waits for delay seconds before running
@@ -293,271 +375,6 @@ def spawn(func, *args, daemon=True, delay=0, **kargs):
     thread.daemon = daemon
     thread.start()
     return que, thread
-
-
-class DotDict(dict):
-    '''
-    Example:
-    m = dotdict({'first_name': 'Eduardo'}, last_name='Pool', age=24, sports=['Soccer'])
-
-    Modified from:
-    https://stackoverflow.com/questions/2352181/how-to-use-a-dot-to-access-members-of-dictionary
-    to set unlimited chained .variables like DotDict().tom.bob = 3
-    '''
-
-    def __init__(self, *args, **kwargs):
-        super(DotDict, self).__init__(*args, **kwargs)
-        for arg in args:
-            if isinstance(arg, dict):
-                for k, v in arg.items():
-                    self[k] = v
-
-        if kwargs:
-            for k, v in kwargs.items():
-                self[k] = v
-
-    def __getattr__(self, attr):
-        if attr in self:
-            return self.get(attr)
-        else:
-            self[attr] = DotDict()
-            return self[attr]
-
-    def __setattr__(self, key, value):
-        self.__setitem__(key, value)
-
-    def __contains__(self, key):
-        return bool(key in self.__dict__)
-
-    def __setitem__(self, key, value):
-        super(DotDict, self).__setitem__(key, value)
-        self.__dict__.update({key: value})
-
-    def __delattr__(self, item):
-        self.__delitem__(item)
-
-    def __delitem__(self, key):
-        super(DotDict, self).__delitem__(key)
-        del self.__dict__[key]
-
-
-def error(*args, header='\nError:', err=RuntimeError, **kargs):
-    eprint(*args, header=header, v=3, **kargs)
-    raise err
-
-
-def quickrun(*cmd, check=False, encoding='utf-8', errors='replace', mode='w', stdin=None,
-             verbose=0, testing=False, ofile=None, trifecta=False, printme=False, hidewarning=False, **kargs):
-    '''Run a command, list of commands as arguments or any combination therof and return
-    the output is a list of decoded lines.
-    check    = if the process exits with a non-zero exit code then quit
-    testing  = Print command and don't do anything.
-    ofile    = output file
-    mode     = output file write mode
-    trifecta = return (returncode, stdout, stderr)
-    stdin    = standard input (auto converted to bytes)
-    printme  = Print to stdout instead of returning it, returns code instead
-    '''
-    cmd = list(map(str, flatten(cmd)))
-    if len(cmd) == 1:
-        cmd = cmd[0]
-
-    if testing:
-        print("Not running command:", cmd)
-        return []
-
-    if verbose:
-        print("Running command:", cmd)
-        print("               =", ' '.join(cmd))
-
-    if ofile:
-        output = open(ofile, mode=mode)
-    else:
-        output = subprocess.PIPE
-
-    if stdin:
-        if type(stdin) != bytes:
-            stdin = stdin.encode()
-
-    if printme:
-        if trifecta:
-            error("quickrun cant use both printme and trifecta")
-        # todo: make more realtime https://stackoverflow.com/questions/803265/getting-realtime-output-using-subprocess
-        ret = subprocess.run(cmd, check=check, stdout=sys.stdout, stderr=sys.stderr, input=stdin, **kargs)
-        code = ret.returncode
-
-    else:
-        # Run the command and get return value
-        ret = subprocess.run(cmd, check=check, stdout=output, stderr=output, input=stdin, **kargs)
-        code = ret.returncode
-        stdout = ret.stdout.decode(encoding=encoding, errors=errors).splitlines() if ret.stdout else []
-        stderr = ret.stderr.decode(encoding=encoding, errors=errors).splitlines() if ret.stderr else []
-
-    if ofile:
-        output.close()
-        return []
-
-    if trifecta:
-        return code, stdout, stderr
-
-    if code and not hidewarning:
-        warn("Process returned code:", code)
-
-    if printme:
-        return ret.returncode
-
-    if not hidewarning:
-        for line in stderr:
-            print(line)
-
-    return stdout
-
-
-def list_get(lis, index, default=''):
-    '''Fetch a value from a list if it exists, otherwise return default
-    Now accepts negative indexes'''
-
-    length = len(lis)
-    if -length <= index < length:
-        return lis[index]
-    else:
-        return default
-
-
-def percent(num, digits=0):
-    if not digits:
-        return str(int(num * 100)) + '%'
-    else:
-        return sig(num * 100, digits) + '%'
-
-
-def flatten(tree):
-    "Flatten a nested list, tuple or dict of any depth into a flat list"
-    # For big data sets use this: https://stackoverflow.com/a/45323085/11343425
-    out = []
-    if isinstance(tree, dict):
-        for key, val in tree.items():
-            if type(val) in (list, tuple, dict):
-                out += flatten(val)
-            else:
-                out.append({key: val})
-
-    else:
-        for item in tree:
-            if type(item) in (list, tuple, dict):
-                out += flatten(item)
-            else:
-                out.append(item)
-    return out
-
-
-def sorted_array(array, column=-1, reverse=False):
-    "Return sorted 2d array line by line"
-    pairs = [(line[column], index) for index, line in enumerate(array)]
-    for _val, index in sorted(pairs, reverse=reverse):
-        # print(index, val)
-        yield array[index]
-
-
-def avg(lis):
-    "Average a list"
-    return sum(lis) / len(lis)
-
-
-def read_file(filename):
-    "Read an entire file into text"
-    with open(filename, 'r') as f:
-        return f.read()
-
-
-def dict_valtokey(dic, val):
-    "Take a dictionary value and return the first key found:"
-    for k, v in dic.items():
-        if val == v:
-            return k
-    return None
-
-
-def read_state(filename, multiline=False, forget=False, verbose=True, cleanup_age=86400):
-    "todo make this a class"
-    '''
-    Maintains open file handles to read the state of a file without wasting resources
-    forget =        open a file without maintaing open file handle
-    multiline =     Return every stdout line instead of just the first.
-    cleanup_age =   Minimum age to keep an old unaccessed file around before cleaning it up
-    verbose =       1   Print a notification each time a new file opened
-    verbose =       2   Print a notification each time a file is accesssed
-    '''
-
-    if verbose >= 2:
-        print("Reading:", filename)
-
-    # Open a file and don't add it to the log
-    if forget:
-        with open(filename, 'r') as f:
-            if multiline:
-                return list(map(str.strip, f.readlines()))
-            else:
-                return f.readline().strip()
-
-    # Keep a dictionary of open files
-    self = read_state
-    now = time.time()
-    if not hasattr(self, 'filenames'):
-        self.filenames = dict()         # dictionary of filenames to file handles
-        self.history = dict()           # When was the last time file was opened?
-        self.last_cleanup = now         # Cleanup old files, occassionally
-        # There is a limit to the number of open file handles.
-        self.limit = 64                 # int(resource.getrlimit(resource.RLIMIT_NOFILE)[0] / 4)
-
-    # Cleanup old unused file handles
-    if cleanup_age and now - self.last_cleanup > cleanup_age / 2:
-        self.last_cleanup = now
-        for name in list(self.history.keys()):
-            if name == filename:
-                continue
-            if now - self.history[name] > cleanup_age:
-                print("Removing old file handle:", name)
-                f = self.filenames[name]
-                del self.filenames[name]
-                del self.history[name]
-                f.close()
-
-    # Remove files if past the limit of file handles
-    if len(self.filenames) > self.limit:
-        earliest = sorted(list(self.history.values()))[0]
-        name = dict_valtokey(self.history, earliest)
-        print("\nToo many open handles! Removing:", name)
-        f = self.filenames[name]
-        f.close()
-        del self.filenames[name]
-        del self.history[name]
-
-    # Open the file
-    if filename not in self.filenames:
-        if verbose:
-            print("Opening", '#' + str(len(self.filenames) + 1) + ':', filename)
-        try:
-            f = open(filename, 'r')
-        except BaseException:
-            raise ValueError("Could not open: " + filename)
-        self.filenames[filename] = f
-    else:
-        f = self.filenames[filename]
-        f.seek(0)
-    self.history[filename] = now
-
-    # Return data
-    if multiline:
-        return list(map(str.strip, f.readlines()))
-    else:
-        return f.readline().strip()
-
-
-def read_val(file):
-    "Read a number from an open file handle"
-    file.seek(0)
-    return int(file.read())
 
 
 class Eprinter:
@@ -643,17 +460,11 @@ def undent(text, tab=''):
     return '\n'.join([tab + line.lstrip() for line in text.splitlines()])
 
 
-def warn(*args, header="\n\nWarning:", sep=' ', delay=1 / 64, confirm=False):
+def warn(*args, header="\n\nWarning:", sep=' ', delay=1/64, confirm=False):
     msg = undent(sep.join(list(map(str, args))))
     time.sleep(eprint(msg, header=header, v=2) * delay)
     if confirm:
         _nul = input()
-
-
-def qwarn(*args, header="\n\nWarning:", sep=' '):
-    "Quick warn for scripts without delay"
-    msg = undent(sep.join(list(map(str, args))))
-    eprint(msg, header=header, v=2)
 
 
 def mkdir(target, exist_ok=True, **kargs):
@@ -688,16 +499,19 @@ def rfs(num, mult=1000, digits=3, order=' KMGTPEZYB', suffix='B', space=' '):
     if abs(num) < mult:
         return sig(num) + space + suffix
 
+    # Let's Learn about BrontoBytes
+    # Comment this out when BrontoBytes become mainstream
     # https://cmte.ieee.org/futuredirections/2020/12/01/what-about-brontobytes/
-    bb = mult**9
-    if bb <= num < 2 * bb:
-        print("Fun Fact: The DNA of all the cells of 100 Brontosauruses " + \
-              "combined contains around a BrontoByte of data storage")
-    if num >= bb:
-        # Comment this out when BrontoBytes become mainstream
-        order = list(order)
-        order[9] = 'BrontoBytes'
-        suffix = ''
+    if num >= 10e+26:
+        bb = mult**9
+        if num >= bb:
+            order = list(order)
+            order[9] = 'BrontoBytes'
+            suffix = ''
+            if num < 1.9 * bb:
+                print("Fun Fact: The DNA of all the cells of 100 Brontosauruses " + \
+                      "combined contains around a BrontoByte of data storage")
+
 
     # Faster than using math.log:
     for x in range(len(order) - 1, -1, -1):
@@ -705,33 +519,6 @@ def rfs(num, mult=1000, digits=3, order=' KMGTPEZYB', suffix='B', space=' '):
         if abs(num) >= magnitude:
             return sig(num / magnitude, digits) + space + (order[x] + suffix).rstrip()
     return str(num) + suffix        # Never called, but needed for pylint
-
-
-def check_install(*programs, msg='', quitonerr=True):
-    '''Check if program is installed (and reccomend procedure to install)
-    programs is the list of programs to test
-    prints msg if it can't find any and returns False'''
-
-    errors = 0
-    for program in programs:
-        paths = shutil.which(program)
-        if not paths:
-            errors += 1
-            print('\n', program, 'is not installed.')
-    if errors:
-        if msg:
-            if type(msg) == str:
-                print("To install type:", msg)
-            else:
-                print("To install type:")
-                for m in msg:
-                    print('\t' + m)
-        else:
-            print("Please install to continue...")
-        if quitonerr:
-            sys.exit(1)
-        return False
-    return True
 
 
 def gohome():
@@ -788,5 +575,5 @@ eprint = Eprinter(verbose=1).eprint     # pylint: disable=C0103
 Generated by https://github.com/SurpriseDog/Star-Wrangler
 a Python tool for picking only the required code from source files
 written by SurpriseDog at: https://github.com/SurpriseDog
-2022-06-30
+2023-03-15
 '''

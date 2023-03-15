@@ -8,8 +8,9 @@
 
 
 import shutil
+from sd.bash import quickrun
 from sd.columns import auto_cols
-from sd.common import avg, sorted_array, flatten, quickrun, DotDict
+from sd.common import avg, sorted_array, flatten, DotDict
 
 
 

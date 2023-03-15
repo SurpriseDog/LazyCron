@@ -20,9 +20,10 @@ import sd.chronology as chronos
 from shared import aprint
 from timewatch import get_idle
 
+from sd.bash import quickrun
 from sd.msgbox import msgbox
 from sd.columns import indenter
-from sd.common import safe_filename, error, check_internet, spawn, quickrun
+from sd.common import safe_filename, error, check_internet, spawn
 from sd.common import search_list, DotDict, qwarn as warn, unique_filename, ConvertDataSize, rfs
 
 

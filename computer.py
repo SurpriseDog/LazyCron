@@ -1,8 +1,9 @@
 #!/usr/bin/python3
 
 import os
+from sd.bash import quickrun
 from sd.read_state import read_state
-from sd.common import read_val, read_file, warn, quickrun
+from sd.common import read_val, read_file, warn
 
 
 def get_filename(expr, path='/sys/class/power_supply/', verbose=0):
