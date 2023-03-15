@@ -787,7 +787,7 @@ def run_thread(cmd, log, reqs, name):
 
     time.sleep(reqs('delay') or 0)
     if reqs('nice'):
-        os.nice(reqs('nice') - shared.NICE)
+        os.nice(reqs('nice') - os.nice(0))
 
     retry = reqs('retry')
 
@@ -955,7 +955,7 @@ def compress_logs(dirname, minimum=5, month=-1, overwrite=False, exts=('.log', '
         today = dada(*dada.now().timetuple()[:3])
         start = chronos.add_date(today, months=month).replace(day=1)
         end = chronos.add_date(start, months=1)
-        oname = start.strftime("%Y.%m.%B_logs.tar.gz")
+        oname = start.strftime("%Y.%m.%B_Logs.tar.gz")
         oname = os.path.join('Archived Logs', oname)
 
         if not overwrite and os.path.exists(oname):

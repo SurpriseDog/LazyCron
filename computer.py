@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 
 import os
-from sd.common import read_val, read_state, read_file, warn, quickrun
+from sd.read_state import read_state
+from sd.common import read_val, read_file, warn, quickrun
 
 
 def get_filename(expr, path='/sys/class/power_supply/', verbose=0):
@@ -75,7 +76,7 @@ class Computer:
 
     def get_ssid(self,):
         "Current Wifi Network"
-        ssid = quickrun('iwgetid', '-r', hidewarning=True,)
+        ssid = quickrun('iwgetid', '-r', hidewarning=True, check=False)
         if ssid:
             return ssid[0].strip()
         else:

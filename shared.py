@@ -11,7 +11,6 @@ SHOWPID = False                     # Set to true to print PID of each process (
 START_TIME = time.time()
 COMP = computer.Computer()
 LOG_DIR = '/tmp/log_dir'            # Default Log Directory
-NICE = 0                            # Script nice value (subprocesses can be higher)
 
 # Low values to suspend computer or run scheduled procesess
 LOW_NET = 10e3

@@ -58,6 +58,11 @@ def parse_args():
     "Do everything, but actually run the scripts.",
     ['logs', '', str, '/tmp/LazyCron_logs'],
     "What folder to put the log files in.",
+    ['nice', '', int, 4],
+    '''Base nice level to spawn processes with.
+    Higher numbers up to 20 = less demanding of cpu time.
+    (linux only)
+    ''',
     ['reqs', '', str],
     '''
     Apply requirements to all processes (will not override existing reqs)
@@ -591,11 +596,10 @@ def main(verbose=1):
 if __name__ == "__main__":
     UA = parse_args()
     timewatch.verify()
-    # Min level to print messages:
-    shared.VERBOSE = UA.verbose
+    os.nice(UA.nice)                # Script level nice value, spawned processes can be higher
+    shared.VERBOSE = UA.verbose     # Min level to print messages:
     shared.LOG_DIR = UA.logs
     mkdir(UA.logs)
     gohome()
-    os.nice(shared.NICE)
     print(time.strftime('Log started on %A, %-m-%d at %H:%M'), '=', int(shared.START_TIME))
     main(shared.VERBOSE)
