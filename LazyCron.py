@@ -568,6 +568,7 @@ def main(verbose=1):
         if just_slept:
             sman.run_scripts(polling_rate, flag='wake')
             just_slept = False
+            continue                        # Allows the computer to restablish wifi after sleep
 
 
         sman.update()                       # Update schedule file if it's been updated
