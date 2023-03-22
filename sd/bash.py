@@ -20,6 +20,13 @@ def qrun(*args, encoding='utf-8', check=True, errors='replace', **kargs):
     return ret.stdout.decode(encoding=encoding, errors=errors).splitlines() if ret.stdout else []
 
 
+def bool_run(*args):
+    "Run cmd and return True if it succeded, else False"
+    args = args[0] if len(args) == 1 else args
+    code = subprocess.run(args, check=False,).returncode
+    return not bool(code)
+
+
 def srun(*cmds, **kargs):
     "Split all text before quick run"
     return quickrun(flatten([str(item).split() for item in cmds]), **kargs)

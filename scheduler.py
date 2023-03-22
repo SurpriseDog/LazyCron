@@ -516,7 +516,7 @@ class App:
         now = time.time()
 
         if not (skip_mode and self.start):
-            # Fixes minor buy where skip mode ensures that a process would NEVER start
+            # Fixes minor bug where skip mode ensures that a process would NEVER start
             self.history.append(now)
 
         if skip_mode:

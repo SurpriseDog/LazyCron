@@ -11,6 +11,7 @@ from sd.common import DotDict, rfs, warn, search_list, error, ConvertDataSize
 
 
 # Requirements to run processes, These are default values if no argument given by user
+# Documentation for each one can be found in Readme.Md in the Requirements section
 REQS = dict(
     plugged=True,
     unplugged=True,
