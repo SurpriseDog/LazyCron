@@ -25,6 +25,7 @@ REQS = dict(
     retry=3,
     loop=0,
     lowbatt=10,
+    showpid=True,
     minbatt=50,
     shell=True,
     wake=True,
@@ -36,7 +37,8 @@ REQS = dict(
     timeout=3600,
     nologs=True,
     noerrs=True,
-    localdir=True,
+    directory=None,
+    localdir=True,          # Phased out. Now everything runs in localdir by default. Expect this line to be removed in future release.
     online=True,
     today=10 * 60,
     skip=1,
@@ -61,10 +63,13 @@ ALIASES = dict(
     local_dir='localdir',
     shut='closed',
     low_batt='lowbatt',
+    cwd='directory',
+    dir='directory',
     batt='lowbatt',
     battery='lowbatt',
     highbatt='minbatt',
     minbattery='minbatt',
+    pid='showpid',
     wait='delay',
     wifi='ssid',
     noerrors='noerrs',
@@ -105,7 +110,7 @@ class Reqs:
         self.data_reqs = ('disk', 'network')
 
         # String only
-        self.string_reqs = ('ssid', 'environs')
+        self.string_reqs = ('ssid', 'environs', 'directory')
 
         # Requirements to run processes, These are default values if no argument given by user
         self.reqs = DotDict(REQS)

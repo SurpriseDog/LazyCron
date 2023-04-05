@@ -16,7 +16,8 @@
 
 
 # Thread test, make sure process finishes before starting new one
-#*                    4s              *                 *                            sleep 1m
+*                    4s              *                showpid                       sleep 1m
+*					 * 				 *				  cwd '/home'					pwd
 
 # Timeout test
 #*                    *               *               timeout 10s, localdir         time sleep 1h

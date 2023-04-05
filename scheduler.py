@@ -581,6 +581,17 @@ def run_thread(cmd, log, reqs, name):
         else:
             delaymult = 1
 
+
+    # Set the local directory to run in
+    if reqs('directory'):
+        cwd = reqs('directory')
+    else:
+        cwd = os.path.dirname(cmd[0]) or None
+    if cwd and not os.path.exists(cwd):
+        print("Directory:", cwd, "does not exist, defaulting to None.")
+        cwd = None
+    # print(cmd, 'cwd=', cwd)
+
     # Loop in retry and loop modes
     counter = 0
     loops = reqs('loop')
@@ -604,7 +615,7 @@ def run_thread(cmd, log, reqs, name):
             loopdelay *= delaymult
 
         # Code = None if terminated early, 0 on success, [Any other integer] on error
-        code, elapsed, efilename = run_proc(cmd, log, reqs, name, attempt=counter)
+        code, elapsed, efilename = run_proc(cmd=cmd, log=log, reqs=reqs, name=name, cwd=cwd, attempt=counter)
 
         # Run this script again if requested (does not count toward reps)
         if retry:
@@ -628,7 +639,7 @@ def run_thread(cmd, log, reqs, name):
         aprint(msg.strip())
 
 
-def run_proc(cmd, log, reqs, name, attempt):
+def run_proc(cmd, log, reqs, name, cwd, attempt):
     "Actually run the process"
 
     # Set output and error files
@@ -653,11 +664,11 @@ def run_proc(cmd, log, reqs, name, attempt):
         except subprocess.TimeoutExpired:
             return None
 
-    if not shared.SHOWPID:
+    if not reqs('showpid'):
         # subprocess.run method
         try:
             ret = subprocess.run(cmd, check=False, stdout=ofile, stderr=efile,
-                                 cwd=os.path.dirname(cmd[0]) if reqs('localdir') else None,
+                                 cwd=cwd,
                                  shell=reqs('shell') or False,
                                  timeout=timeout,
                                  env=reqs('environs') or os.environ,
@@ -667,14 +678,12 @@ def run_proc(cmd, log, reqs, name, attempt):
             code = None
 
     else:
-        # subprocess.Popen method
+        # Experimental: subprocess.Popen method
         ret = subprocess.Popen(cmd, stdout=ofile, stderr=efile,
-                               cwd=os.path.dirname(cmd[0]) if reqs('localdir') else None,
+                               cwd=cwd,
                                shell=reqs('shell') or False,
                                env=reqs('environs') or os.environ,
                                )
-
-
         # Show pid after 2 seconds
         if timeout and timeout < 2:
             code = wait(timeout)

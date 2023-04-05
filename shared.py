@@ -6,7 +6,6 @@ from sd.common import check_install, warn
 import sd.chronology as chronos
 
 VERBOSE = 1                         # Verbosity
-SHOWPID = False                     # Set to true to print PID of each process (experimental)
 
 START_TIME = time.time()
 COMP = computer.Computer()
