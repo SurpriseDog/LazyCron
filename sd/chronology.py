@@ -177,12 +177,24 @@ for exp in range(-22,66):
 '''
 
 
-def seconds_since_midnight(seconds=None):
+def midnight(now=None):
+    "Return next midnight, optionally supply a datetime object to get a different day's midnight"
+    if not now:
+        now = dada.today()
+    return dada(now.year, now.month, now.day).timestamp() + 86400
+
+
+def seconds_since_midnight(now=None):
+    '''
     if seconds:
         tim = time.localtime(seconds)
     else:
         tim = time.localtime()
     return tim.tm_hour * 3600 + tim.tm_min * 60 + tim.tm_sec + time.time() % 1
+    '''
+    if not now:
+        now = time.time()
+    return now + 86400 - midnight()
 
 
 def diff_days(*args):

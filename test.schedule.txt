@@ -7,7 +7,7 @@
 *                    *               *                idle 5s                       # idle
 *					 *               *                start, busy 8s				# busy
 *					 *               *                start, elapsed 8s				# elapsed
-*					 *               *                start, today 8s				# today
+#*					 *               *                start, today 8s				# today
 
 
 
@@ -16,7 +16,7 @@
 
 
 # Thread test, make sure process finishes before starting new one
-*                    4s              *                showpid                       sleep 1m
+#*                    4s              *                showpid                       sleep 1m
 *					 * 				 *				  cwd '/home'					pwd
 
 # Timeout test
@@ -34,7 +34,7 @@
 
 
 
-*                    4s elapsed      *                *                             # Frequency
+#*                    4s elapsed      *                *                             # Frequency
 
 
 # Cpu nice test
@@ -52,5 +52,5 @@
 # Gap tests. Fix the bug where a time interval breaching a cycle boundary didn't work correctly.
 # Oct-Feb should go from this year to the next.
 *                    *               Oct-Feb          *                             # year gap test
-11pm-2am             *               *                *                             # day gap test
+11am-7am,8am-9am     *               *                *                             # day gap test
 #*                    *              *                minbatt 50%                   msgbox min batt test

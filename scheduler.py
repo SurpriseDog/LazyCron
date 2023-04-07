@@ -312,11 +312,11 @@ class App:
         return new_start, new_stop
 
 
-    def calc_window(self):
+    def calc_window(self,):
         "Calculate the next start and stop window for the proc in unix time"
         inf = float("inf")
         now = time.time()
-        midnight = round(now - chronos.seconds_since_midnight())
+        midnight = chronos.midnight() - 86400       # Last midnight
         if self.date_window:
             self.start, self.stop = map(dada.timestamp, self.calc_date(extra=1))
 
@@ -440,7 +440,7 @@ class App:
             if 'reps' in reqs:
 
                 # Start time if in window, otherwise midnight:
-                start = self.start if self.start else time.time() - chronos.seconds_since_midnight()
+                start = self.start if self.start else chronos.midnight() - 86400
                 count = len(self.history) - bisect.bisect_left(self.history, start)
 
                 # Fixed bug where skipped runs counted towards reps
@@ -525,7 +525,14 @@ class App:
         # If no frequency was specifed, then it will run every day. Note! 0 != None
         if self.freq is None:
             # Set to midnight
-            self.next_run = now + 86400 - chronos.seconds_since_midnight()
+            # self.next_run = now + chronos.midnight()
+            # Fix the bug where time windows spanning midnight run twice:
+            # self.calc_window(now=self.stop)
+            if self.window:
+                self.next_run = sorted(self.window)[0][0] + chronos.midnight()
+            else:
+                self.next_run = chronos.midnight()
+
         elif self.freq:
             # Otherwise add freq
             self.next_run = now + self.freq
