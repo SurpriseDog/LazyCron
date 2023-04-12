@@ -377,12 +377,12 @@ class App:
             return self.in_window()
 
 
-    def show_history(self,):
+    def show_history(self, minimum=0):
         "Show the history of timestamps for process"
         # Compact way to show time start. Numbers indicate seconds since program start
         history = [str(int(ts - shared.START_TIME)) for ts in self.history[-11:]]
 
-        if len(history) >= 2:
+        if len(history) >= minimum:
             if len(history) < 11:
                 print(', '.join(history))
             else:
@@ -527,7 +527,6 @@ class App:
             # Set to midnight
             # self.next_run = now + chronos.midnight()
             # Fix the bug where time windows spanning midnight run twice:
-            # self.calc_window(now=self.stop)
             if self.window:
                 self.next_run = sorted(self.window)[0][0] + chronos.midnight()
             else:
@@ -564,7 +563,7 @@ class App:
 
         self.alert(text, v=1)
         if self.verbose >= 2:
-            self.show_history()
+            self.show_history(minimum=2)
         return started
 
 

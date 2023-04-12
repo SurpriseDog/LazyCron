@@ -2,6 +2,7 @@
 
 import shared
 from sd.common import search_list
+from sd.chronology import local_time
 
 class Debugger:
     '''Hidden debug tool - Read user input and print status while running
@@ -65,6 +66,12 @@ class Debugger:
             match = self.find_app(tail)
             if match:
                 print(match)
+
+        elif first == 'history':
+            match = self.find_app(tail)
+            if match:
+                for t in match.history:
+                    print(int(t), '=', local_time(t))
 
         elif first == 'reqs':
             match = self.find_app(tail)

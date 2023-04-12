@@ -18,16 +18,17 @@ You can also set various requirements, such as: the computer must be idle for a 
 
 ```
 
-#Time              Frequency     Date              Requirements                   Script Path
-8:30pm-3am         *             sat-sun           idle 5m, plugged, online        daily_backup_script_path_goes_here.sh
-*                  1h            *                 busy 10, idle 5                my_hourly_backup_script.py
-2pm-8pm            1h elapsed    *                 online                         a_daily_script.py
--5pm               *             m-f               random 8h                      A_surprise_everyday.py
-4-6pm              *             2nd Thursday      busy 5m                        mpg123 'Libera - Going Home.mp3'
-*                  *             March 14          *                              pi_day.py
-*                  *             1st-2nd           *                              zenity --info --text="Monthly todo"
-*                  *             *                 start 1                        run_at_startup.sh
-
+#Time              Frequency     Date              Requirements                               Script Path
+8:30pm-3am         *             sat-sun           idle 5m, online, ssid my_home_net          /home/user/scripts/my_daily_backup_script.sh
+*                  1h            *                 idle 5m, online, plugged                   /home/user/scripts/my_hourly_backup_script.sh
+2pm-8pm            1h elapsed    *                 online                                     /home/user/scripts/a_daily_script.py
+-5pm               *             m-f               random 160h                                /home/user/scripts/a_surprise.sh
+4-6pm              *             2nd Thursday      busy 5m                                    mpg123 'Libera - Going Home.mp3'
+*                  *             March 14          *                                          pi_day.py
+*                  *             1st-2nd           *                                          msgbox "Monthly List"
+*                  *             *                 start 1                                    /home/user/scripts/run_at_startup.sh
+*                  *             8m                lowbatt 50, idle 20m,                      python3 -c "from common import say; say('Low Battery! Please Plug This Computer In!')"
+*                  *             *                 ssid public_wifi                           msgbox "Check downtown todo list!"
 ```
 
 
@@ -47,7 +48,7 @@ How often the program runs. m = minutes, h = hours and so on. My script should a
 
     - 1h will run every hour
     - 1h elapsed will only count time when the computer is actively in use by user.
-	- A `0` will run as often as possible.
+    - A `0` will run as often as possible.
     - A `*` will only run once a day.
 
 ### Date
