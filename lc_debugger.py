@@ -71,7 +71,7 @@ class Debugger:
             match = self.find_app(tail)
             if match:
                 for t in match.history:
-                    print(int(t), '=', local_time(t))
+                    print(' ' * 7, int(t), '=', local_time(t))
 
         elif first == 'reqs':
             match = self.find_app(tail)

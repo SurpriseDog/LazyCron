@@ -230,7 +230,8 @@ class App:
 
 
     def __str__(self):
-        return str({key: val for key, val in self.__dict__.items() if key != 'args'})
+        # return str({key: val for key, val in self.__dict__.items() if key != 'args'})
+        return str(vars(self))
 
 
     def __repr__(self):
@@ -241,6 +242,7 @@ class App:
         "Print a detailed representation of each app"
 
         print('Name: ', self.name)
+        # print('Args: ', self.args)
         if self.window or self.date_window:
             now = time.time()
             print('Start:', chronos.local_time(self.start, '%a %m-%d %I:%M %p'), '=',
@@ -277,14 +279,6 @@ class App:
         return False
         # Search system wide
         # return ps_running(self.cmd)
-
-    '''
-    def kill(self):
-        "Kill process thread if running"    #todo
-        if not self.running:
-            print("No thread found for", self.name)
-            return False
-    '''
 
 
     def calc_date(self, extra=0):
@@ -528,6 +522,7 @@ class App:
             # self.next_run = now + chronos.midnight()
             # Fix the bug where time windows spanning midnight run twice:
             if self.window:
+                # self.next_run = sorted(flatten(self.window))[0] + chronos.midnight()
                 self.next_run = sorted(self.window)[0][0] + chronos.midnight()
             else:
                 self.next_run = chronos.midnight()
@@ -656,7 +651,11 @@ def run_proc(cmd, log, reqs, name, cwd, attempt):
         log = log + '.' + str(attempt)
 
     ofilename = unique_filename(log + '.log')
-    efilename = unique_filename(log + '.err')
+    if reqs('combine'):
+        efilename = ofilename
+    else:
+        efilename = unique_filename(log + '.err')
+
     ofile = open(ofilename, mode='a')
     efile = open(efilename, mode='a')
     timeout = reqs('timeout')
@@ -786,3 +785,16 @@ def compress_logs(dirname, minimum=5, month=-1, overwrite=False, exts=('.log', '
     status = compress()
     os.chdir(cur)
     return status
+
+
+
+'''
+Testing:
+import scheduler, timewatch
+twatch = timewatch.TimeWatch(verbose=True)
+reload(scheduler)
+
+a = scheduler.App({'time': '3pm - 3am, 6am-9am', 'frequency': '*', 'date': 'april 1 - april 22', 'reqs': 'idle 1', 'path': 'msgbox "hello"'}); a.run(twatch, True); a.print()
+
+
+'''
