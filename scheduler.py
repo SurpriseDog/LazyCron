@@ -651,10 +651,7 @@ def run_proc(cmd, log, reqs, name, cwd, attempt):
         log = log + '.' + str(attempt)
 
     ofilename = unique_filename(log + '.log')
-    if reqs('combine'):
-        efilename = ofilename
-    else:
-        efilename = unique_filename(log + '.err')
+    efilename = unique_filename(log + '.err')
 
     ofile = open(ofilename, mode='a')
     efile = open(efilename, mode='a')
@@ -736,8 +733,6 @@ def compress_logs(dirname, minimum=5, month=-1, overwrite=False, exts=('.log', '
     overwrite = overwrite existing .tar.gz
     exts = file extensions to add to tar, None = All files
     '''
-    # Future: Gather up last years .tar.gz files and combine them?
-    # https://stackoverflow.com/q/2018512/11343425
 
     cur = os.getcwd()
     os.chdir(dirname)       # Needed for relative paths in output file

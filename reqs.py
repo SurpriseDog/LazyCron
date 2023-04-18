@@ -37,7 +37,6 @@ REQS = dict(
     timeout=3600,
     nologs=True,
     noerrs=True,
-    combine=True,
     directory=None,
     localdir=True,          # Phased out. Now everything runs in localdir by default. Expect this line to be removed in future release.
     online=True,
