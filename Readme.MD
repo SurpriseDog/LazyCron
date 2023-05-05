@@ -114,7 +114,6 @@ Examples: m-f, every 2nd Thursday
 | `nice` | Start script with unix nice value. Higher values are nicer to other processes |
 | `nologs` | Delete logs if script returns code `0` (all okay) - By default, empty logs will automatically be deleted. |
 | `noerrs` | Don't alert on any script errors |
-| `combine` | Combine stdout and stderr into one .log file |
 | `cwd` | Set a directory for the script to run in. By default, the local directory is used. |
 | `showpid`  | Show the PID for spawned process. |
 | `timeout` | Time to allow the script to run before killing it. |

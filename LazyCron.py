@@ -9,6 +9,7 @@ import re
 import time
 import traceback
 import importlib
+import multiprocessing as mp
 
 import shutil
 import shared
@@ -20,7 +21,8 @@ from lc_debugger import Debugger
 from sd.msgbox import msgbox
 from sd.columns import auto_cols
 from sd.easy_args import easy_parse
-from sd.chronology import convert_user_time, fmt_time
+from sd.cut import convert_user_time
+from sd.format_number import fmt_time
 from sd.common import itercount, gohome, rfs, mkdir, warn, spawn, DotDict, sig
 
 
@@ -422,6 +424,18 @@ class ScriptManager:
             self.schedule_apps[:] = new_sched
 
 
+def mp_start(target, args=None, kwargs=None, daemon=True):
+    '''Start a seperate process for a function with multiprocessing
+    args = list of args
+    kwargs = dict of keyword args
+    daemon = subprocess is automatically terminated after the parent process ends to prevent orphan processes.
+    '''
+    proc = mp.Process(target=target, args=args, kwargs=kwargs)
+    proc.daemon = daemon
+    proc.start()
+    return proc
+
+
 def main(verbose=1):
     polling_rate = 0                        # Time to rest at the end of every loop
     twatch = timewatch.TimeWatch(verbose=verbose)
@@ -455,7 +469,7 @@ def main(verbose=1):
             twatch.reset()
             cur_day = time.localtime().tm_yday
             print(time.strftime('\n\n\nToday is %A, %-m-%d'), '\n' + '#' * 80)
-            scheduler.compress_logs(shared.LOG_DIR)
+            mp_start(scheduler.compress_logs, args=(shared.LOG_DIR,))
             sleep_failed = 0
 
 

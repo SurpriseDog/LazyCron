@@ -6,9 +6,38 @@ import subprocess
 
 import shared
 from sd.common import warn, check_install
-from sd.chronology import local_time, fmt_time, msleep
+from sd.chronology import local_time
+from sd.format_number import fmt_time
 
 PLATFORM = shared.PLATFORM
+
+
+def psleep(seconds):
+    "Sleep and tell us how long for"
+    print("Sleeping for", fmt_time(seconds, digits=2) + '...', file=sys.stderr)
+    time.sleep(seconds)
+
+
+def msleep(seconds, accuracy=1/60):
+    '''Sleep for a time period and return amount of missing time during sleep
+    For example, if computer was in suspend mode.
+    Average error is about 100ms per 1000 seconds = .01%
+    '''
+    if seconds <= 0:
+        return 0
+    start = time.time()
+    time.sleep(seconds)
+    elapsed = time.time() - start
+    if elapsed / seconds > 1 + accuracy:
+        return elapsed - seconds
+    else:
+        return 0
+
+
+def pmsleep(seconds):
+    "Combination of psleep and msleep"
+    print("Sleeping for", fmt_time(seconds, digits=2) + '...', file=sys.stderr)
+    return msleep(seconds)
 
 
 def verify():
@@ -23,8 +52,6 @@ def verify():
     else:
         sys.exit(1)
     return True
-
-
 
 
 def get_idle():

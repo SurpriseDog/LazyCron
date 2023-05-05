@@ -6,9 +6,10 @@ import csv
 import shutil
 
 import shared
-import sd.chronology as chronos
-from sd.common import DotDict, rfs, warn, search_list, error, ConvertDataSize
-
+from sd.cds import ConvertDataSize
+from sd.cut import convert_user_time
+from sd.format_number import fmt_time
+from sd.common import DotDict, rfs, warn, search_list, error
 
 # Requirements to run processes, These are default values if no argument given by user
 # Documentation for each one can be found in Readme.Md in the Requirements section
@@ -38,7 +39,10 @@ REQS = dict(
     nologs=True,
     noerrs=True,
     directory=None,
-    localdir=True,          # Phased out. Now everything runs in localdir by default. Expect this line to be removed in future release.
+
+    # Phased out. Now everything runs in localdir by default. Expect this line to be removed in future release.
+    localdir=True,
+
     online=True,
     today=10 * 60,
     skip=1,
@@ -152,7 +156,7 @@ class Reqs:
             if key in self.data_reqs:
                 val = rfs(val) + '/s'
             if key in self.time_reqs and val >= 300:
-                val = chronos.fmt_time(val)
+                val = fmt_time(val)
             out[key] = val
         print('Reqs: ', out)
 
@@ -217,7 +221,7 @@ class Reqs:
 
             # Non numeric conversions
             if match in self.time_reqs:
-                val = chronos.convert_user_time(val, default='minutes')
+                val = convert_user_time(val, default='minutes')
             elif match in ('plugged', 'closed', 'online'):
                 val = bool(val)
             elif match in self.data_reqs:

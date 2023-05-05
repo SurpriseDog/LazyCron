@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 # Manipulate columns of text
-
 from shutil import get_terminal_size
-from sd.common import map_nested
 
-TERM_WIDTH = max(get_terminal_size().columns, 20)
+def term_width():
+    return max(get_terminal_size().columns, 20)
+
 
 def indenter(*args, header='', level=0, tab=4, wrap=-4, even=False):
     '''
@@ -14,7 +14,7 @@ def indenter(*args, header='', level=0, tab=4, wrap=-4, even=False):
     negative = wrap to terminal width minus wrap
     '''
     if wrap < 0:
-        wrap = TERM_WIDTH + wrap
+        wrap = term_width() + wrap
 
     if type(tab) == int:
         tab = ' ' * tab
@@ -182,9 +182,6 @@ def auto_columns(array, space=4, manual=None, printme=True, wrap=0, crop=None, j
     if not manual:
         manual = dict()
 
-    # Convert generators and map objects:
-    array = map_nested(str, array)
-
     # Find any \n and bump it to the next line of array
     for index, line in reversed(list(enumerate(array))):
         if '\n' in ''.join(line):
@@ -217,7 +214,7 @@ def auto_columns(array, space=4, manual=None, printme=True, wrap=0, crop=None, j
     col_width = [sum(x) for x in zip(col_width, spaces)]
 
     # Adjust for line wrap and fit in terminal
-    max_width = TERM_WIDTH - 1 # Terminal size
+    max_width = term_width() - 1 # Terminal size
     if wrap < 0:
         wrap = max_width + wrap
     if wrap:
@@ -253,7 +250,7 @@ def _tester():
     text = "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur? At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere " # pylint: disable=C0301
 
     print("\nindenter:")
-    for line in indenter(text):
+    for line in indenter(text, wrap=term_width() // 2):
         print(line)
 
     out = []

@@ -4,7 +4,7 @@ import os
 import re
 import csv
 import time
-import gzip
+import lzma
 import shutil
 import bisect
 import shlex
@@ -17,6 +17,8 @@ from datetime import datetime as dada
 import shared
 import sd.chronology as chronos
 
+
+
 from reqs import Reqs
 from shared import aprint
 from timewatch import get_idle
@@ -24,6 +26,8 @@ from timewatch import get_idle
 from sd.bash import quickrun
 from sd.msgbox import msgbox
 from sd.columns import indenter
+from sd.format_number import fmt_time
+from sd.cut import convert_user_time, convert_ut_range, udate
 from sd.common import safe_filename, error, check_internet, spawn, qwarn as warn, unique_filename
 
 
@@ -41,7 +45,7 @@ def process_date(src):
 
     section = re.split('-| to ', src)
     try:
-        days, cycle = list(zip(*map(chronos.udate, section)))
+        days, cycle = list(zip(*map(udate, section)))
     except ValueError:
         error("Cannot understand text:", src)
 
@@ -173,7 +177,7 @@ class App:
 
 
     def process_time(self, section):
-        vals = chronos.convert_ut_range(section, default='hours')
+        vals = convert_ut_range(section, default='hours')
         if len(vals) == 2:
             self.window.append([vals[0], vals[1]])
         else:
@@ -187,12 +191,12 @@ class App:
             for term in ['elapsed', 'used', 'usage', 'in use', 'busy', 'inuse', 'not idle', 'every']:
                 if term in arg:
                     arg = arg.replace(term, '').strip()
-                    self.elapsed_freq = chronos.convert_user_time(arg, default='minutes')
+                    self.elapsed_freq = convert_user_time(arg, default='minutes')
                     self.elapsed_next = self.elapsed_freq
                     break
             else:
                 freq_trigger = True
-                self.freq = chronos.convert_user_time(arg, default='minutes')
+                self.freq = convert_user_time(arg, default='minutes')
 
         if self.elapsed_freq and not freq_trigger:
             self.freq = 0
@@ -246,7 +250,7 @@ class App:
         if self.window or self.date_window:
             now = time.time()
             print('Start:', chronos.local_time(self.start, '%a %m-%d %I:%M %p'), '=',
-                  chronos.fmt_time(self.start - now))
+                  fmt_time(self.start - now))
 
             # Make it so that if the user says it ends on a certain day, that's what the text says
             # Example: Thu-Mon used to say it started Thursday and ended on Tuesday at Midnight.
@@ -255,9 +259,9 @@ class App:
             if dada.fromtimestamp(stop).strftime('%H%M%S') == '000000':
                 stop -= 1
             print('Stop: ', chronos.local_time(stop, '%a %m-%d %I:%M %p'), '=',
-                  chronos.fmt_time(self.stop - now))
+                  fmt_time(self.stop - now))
         if self.freq:
-            print('Freq: ', chronos.fmt_time(self.freq))
+            print('Freq: ', fmt_time(self.freq))
         elif self.freq is None:
             print('Freq: ', '*')
         print('cmd: ', self.cmd)
@@ -268,8 +272,8 @@ class App:
         if self.next_run:
             print('Next_run:', chronos.local_time(self.next_run))
         if self.elapsed_freq:
-            print('Elapsed freq:', chronos.fmt_time(self.elapsed_freq))
-            print('Next Elapsed:', chronos.fmt_time(self.elapsed_next))
+            print('Elapsed freq:', fmt_time(self.elapsed_freq))
+            print('Next Elapsed:', fmt_time(self.elapsed_next))
 
 
     def running(self):
@@ -350,9 +354,9 @@ class App:
         if self.history and (self.window or self.date_window):
             if self.verbose >= 3:
                 if self.start > now:
-                    print("Next run in", chronos.fmt_time(self.start - now), 'for', self.name)
+                    print("Next run in", fmt_time(self.start - now), 'for', self.name)
                 else:
-                    print("Time window for", self.name, 'closes in', chronos.fmt_time(self.stop - now))
+                    print("Time window for", self.name, 'closes in', fmt_time(self.stop - now))
 
         if not now <= self.stop:
             error('Miscalculation!', self.name, now, 'start', self.start, 'stop', self.stop)
@@ -634,7 +638,7 @@ def run_thread(cmd, log, reqs, name):
     messages_sent += send_msg()
 
     if code == 0:
-        msg = ' '.join((name, 'finished after', chronos.fmt_time(elapsed)))
+        msg = ' '.join((name, 'finished after', fmt_time(elapsed)))
         if counter > 1:
             msg += " on run number " + str(counter)
         aprint(msg.strip())
@@ -657,6 +661,7 @@ def run_proc(cmd, log, reqs, name, cwd, attempt):
     efile = open(efilename, mode='a')
     timeout = reqs('timeout')
     start = time.perf_counter()
+    # don't try to merge stdout and stderr. Too difficult: https://stackoverflow.com/q/6809590/11343425
 
 
     def wait(seconds=None):
@@ -735,7 +740,7 @@ def compress_logs(dirname, minimum=5, month=-1, overwrite=False, exts=('.log', '
     '''
 
     cur = os.getcwd()
-    os.chdir(dirname)       # Needed for relative paths in output file
+    os.chdir(dirname)       # Needed for relative paths in output
 
     def compress():
         "Worker function"
@@ -743,7 +748,7 @@ def compress_logs(dirname, minimum=5, month=-1, overwrite=False, exts=('.log', '
         today = dada(*dada.now().timetuple()[:3])
         start = chronos.add_date(today, months=month).replace(day=1)
         end = chronos.add_date(start, months=1)
-        oname = start.strftime("%Y.%m.%B_Logs.tar.gz")
+        oname = start.strftime("%Y.%m.%B_Logs.tar.xz")
         oname = os.path.join('Archived Logs', oname)
 
         if not overwrite and os.path.exists(oname):
@@ -761,12 +766,14 @@ def compress_logs(dirname, minimum=5, month=-1, overwrite=False, exts=('.log', '
         if len(files) >= minimum:
             os.makedirs('Archived Logs', exist_ok=True)
             print("Compressing files from:", start.timetuple()[:3], "to", end.timetuple()[:3])
-            with tarfile.open(oname, "w:gz") as tar:
+
+            # By switching to xz there was a 60+ percent space savings.
+            with tarfile.open(oname, "w:xz") as tar:
                 for name in files:
                     tar.add(name)
 
-            # Verify gzip
-            with gzip.open(oname, 'rb') as f:
+            # Verify compressed file
+            with lzma.open(oname, 'rb') as f:
                 while f.read(1024*1024):
                     pass
 
