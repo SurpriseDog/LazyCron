@@ -424,16 +424,28 @@ class ScriptManager:
             self.schedule_apps[:] = new_sched
 
 
-def mp_start(target, args=None, kwargs=None, daemon=True):
+def mp_start(target, args=(), kwargs=None, daemon=True):
     '''Start a seperate process for a function with multiprocessing
     args = list of args
     kwargs = dict of keyword args
     daemon = subprocess is automatically terminated after the parent process ends to prevent orphan processes.
     '''
+    if not kwargs:
+        kwargs = dict()
     proc = mp.Process(target=target, args=args, kwargs=kwargs)
     proc.daemon = daemon
     proc.start()
     return proc
+
+
+def log_compress():
+    '''Compress logs eventually'''
+    time.sleep(60)
+    proc = mp_start(scheduler.compress_logs, args=(shared.LOG_DIR,))
+    time.sleep(60)
+    proc.join()
+    proc.close()
+
 
 
 def main(verbose=1):
@@ -469,7 +481,7 @@ def main(verbose=1):
             twatch.reset()
             cur_day = time.localtime().tm_yday
             print(time.strftime('\n\n\nToday is %A, %-m-%d'), '\n' + '#' * 80)
-            mp_start(scheduler.compress_logs, args=(shared.LOG_DIR,))
+            spawn(log_compress)
             sleep_failed = 0
 
 

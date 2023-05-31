@@ -166,6 +166,13 @@ Not sure if your schedule will work correctly? Run the program with the --testin
   * If running over `ssh` make sure to attach to the session with the -X flag: `ssh -X` Also setup X11 forwarding with `X11Forwarding yes` in `/etc/ssh/sshd_config` and restart ssh.
 
 
+**Why am I getting messages about missing lid/battery state file**
+  * If you are running on a Desktop please disregard these, as your computer most likely doesn't have a lid or battery like a laptop does.
+  * By default, LC will simply assume the battery is charged and the lid is open, if the access file cannot be found.
+  * If you *ARE* running on a laptop and wish for LC to access your lid/battery state, please submit a support ticket.
+
+
+
 **How do I get messages on the desktop if a program fails?**
 
 

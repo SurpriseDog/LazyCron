@@ -49,6 +49,7 @@ def quickrun(*cmd, check=True, encoding='utf-8', errors='replace', mode='w', std
     trifecta    = return (returncode, stdout, stderr)
     stdin       = standard input (auto converted to bytes)
     printme     = Print to stdout instead of returning it, returns code instead
+    kargs       = Arguments passed on to subprocess.run
     '''
     # Checks
     if printme and trifecta:

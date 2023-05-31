@@ -2,13 +2,16 @@ import sys
 import time
 
 import computer
-from sd.common import check_install, warn
+from sd.common import warn
 import sd.chronology as chronos
 
 VERBOSE = 1                         # Verbosity
 
 START_TIME = time.time()
 COMP = computer.Computer()
+if COMP.batt_capacity or not COMP.lid_state:
+    print("Disregard these messages if you are running on a laptop system.")
+
 LOG_DIR = '/tmp/log_dir'            # Default Log Directory
 
 # Low values to suspend computer or run scheduled procesess

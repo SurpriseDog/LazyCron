@@ -36,40 +36,40 @@ class Computer:
         # Lid open
         lid = "/proc/acpi/button/lid/LID0/state"
         if not os.path.exists(lid):
-            warn("Cannot find path", lid)
-            self._lid = None
+            print("Cannot find file to access lid state")
+            self.lid_state = None
         else:
-            self._lid = lid
+            self.lid_state = lid
 
         # Battery capacity
         for cname, mname in [['charge_now', 'charge_full'], ['energy_now', 'energy_full']]:
-            self._capacity = get_filename(cname)
-            if self._capacity:
+            self.batt_capacity = get_filename(cname)
+            if self.batt_capacity:
                 self.max_power = int(read_file(get_filename(mname)))
                 break
         else:
-            self._capacity = get_filename('capacity')
+            self.batt_capacity = get_filename('capacity')
             self.max_power = 100
-        if not self._capacity:
-            warn("Cannot find battery access file")
+        if not self.batt_capacity:
+            print("Cannot find file to access battery state")
         else:
             if verbose:
-                print("Using battery capacity file:", self._capacity)
-            self._capacity = open(self._capacity)
+                print("Using battery capacity file:", self.batt_capacity)
+            self.batt_capacity = open(self.batt_capacity)
 
     def lid_open(self,):
-        if self._lid:
-            return read_state(self._lid).split()[1] == "open"
+        if self.lid_state:
+            return read_state(self.lid_state).split()[1] == "open"
         else:
             # Fake answer if can't determine state
             return True
 
     def get_capacity(self,):
         "Battery max charge"
-        if self._capacity:
-            return read_val(self._capacity)
+        if self.batt_capacity:
+            return read_val(self.batt_capacity)
         else:
-            return 0
+            return 100
 
     def get_charge(self,):
         "Battery percent left returned as percent x 100"
