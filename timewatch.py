@@ -76,7 +76,7 @@ class TimeWatch:
         self.idle = 0                           # Seconds of idle time
         self.elapsed = 0                        # Total time Computer has spent in usage
         self.increase = 0                       # Increase in elapsed from last call
-        self._inuse_start = 0                       # Contiguous usage time start
+        self._inuse_start = 0                   # Contiguous usage time start
         self.today_elapsed = 0                  # Elapsed just for today
         self.verbose = verbose
 

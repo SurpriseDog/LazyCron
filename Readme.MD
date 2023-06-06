@@ -51,6 +51,7 @@ How often the program runs. m = minutes, h = hours and so on. My script should a
     - A `0` will run as often as possible.
     - A `*` will only run once a day.
 
+
 ### Date
 
 Usually set as a range to limit it to run on certain days of the week:
@@ -60,7 +61,6 @@ Examples: m-f, every 2nd Thursday
     - `2nd Thursday` will run every 2nd thursday of the month
     - `1-2nd` will run on the first two days of the month
     - A `*` will run on any day of the year.
-
 
 
 ### Requirements
@@ -145,6 +145,7 @@ To use the system monitoring utilities for the `cpu`, `network` or `disk` flags;
 
 Not sure if your schedule will work correctly? Run the program with the --testing option or just put a `##` before each script path to show what it would do. Logs are kept in /tmp/LazyCron_logs
 
+
 ## Smart suspend management:
 
 `--idle (minutes)` - Go to sleep after so many minutes while plugged in.
@@ -152,6 +153,21 @@ Not sure if your schedule will work correctly? Run the program with the --testin
 
   * It will check first to make sure you don't have any disk or network activity. - I find this more useful than using the default sleep timer, which will put the computer to sleep regardless of what's going on (e.g. it's in the middle of a long, slow file download or file copy operation).
   * Add programs with `suspend` option to the `Requirements` list in order to run them on before suspend. - LC will wait 1 cycle after running a suspend program before putting the computer to sleep. If the computer shows activity in this period, the sleep will be cancelled.
+
+
+## Running Automatically on Reboot in Linux:
+
+First test the program in a terminal window to make sure everything works as expected. When satisfied you can make it start automatically on boot using cron tab.
+
+  * First get your display number, by tying `w` in the terminal and looking for your username.
+    - For example, on a Linux Mint computer with the username "mint" it might look like:
+    - `mint     tty7     :0`
+    - Where `:0` is the number you need to remember
+  * Then run `crontab -e` and add the following line:
+    - @reboot sleep 8; export DISPLAY=:0; <insert path to LazyCron>/LazyCron.py <your options here> > /tmp/lazycron_logs.txt 2>&1
+    - Making sure to change the display number if needed.
+  * Finally reboot and check `/tmp/lazycron_logs.txt` to make sure it's running
+
 
 ## Troubleshooting:
 

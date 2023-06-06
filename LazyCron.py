@@ -461,7 +461,10 @@ def main(verbose=1):
 
 
     if UA.debug:
-        spawn(Debugger(twatch, sman.schedule_apps, UA).loop)
+        if sys.stdin and sys.stdin.isatty():
+            spawn(Debugger(twatch, sman.schedule_apps, UA).loop)
+        else:
+            print("Error: Debbuger mode only available in a terminal.")
 
     for counter in itercount():
         if counter == 1:
