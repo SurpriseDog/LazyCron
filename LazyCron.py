@@ -6,6 +6,7 @@
 
 import os
 import re
+import sys
 import time
 import traceback
 import importlib
@@ -464,7 +465,7 @@ def main(verbose=1):
         if sys.stdin and sys.stdin.isatty():
             spawn(Debugger(twatch, sman.schedule_apps, UA).loop)
         else:
-            print("Error: Debbuger mode only available in a terminal.")
+            print("Error: Debugger mode only available in a terminal.")
 
     for counter in itercount():
         if counter == 1:
