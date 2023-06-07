@@ -159,14 +159,14 @@ Not sure if your schedule will work correctly? Run the program with the --testin
 
 First test the program in a terminal window to make sure everything works as expected. When satisfied you can make it start automatically on boot using cron tab.
 
-  * First get your display number, by tying `w` in the terminal and looking for your username.
-    - For example, on a Linux Mint computer with the username "mint" it might look like:
-    - `mint     tty7     :0`
-    - Where `:0` is the number you need to remember
-  * Then run `crontab -e` and add the following line:
-    - @reboot sleep 8; export DISPLAY=:0; <insert path to LazyCron>/LazyCron.py <your options here> > /tmp/lazycron_logs.txt 2>&1
-    - Making sure to change the display number if needed.
-  * Finally reboot and check `/tmp/lazycron_logs.txt` to make sure it's running correctly!
+  * Run `crontab -e` and add the following line:
+    - `@reboot sleep 8; <insert path to lc.launcher.sh> <insert your arguments>`
+    - For example on my machine, I would type:
+    	- @reboot /home/MYUSERNAME/git/LazyCron/lc.launcher.sh --skip --idle 3h
+	- Make sure to edit the file path and arguments correctly!
+	- Make sure to use lc.launcher.sh and not the main program file!
+
+  * Finally reboot and check the logs in `/tmp/lazycron_logs.txt` to make sure it's running correctly!
 
 
 ## Troubleshooting:
