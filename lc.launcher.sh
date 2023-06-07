@@ -27,6 +27,7 @@ export PATH=`sed 's/PATH=//' /etc/environment`
 
 
 # Log status
+elog "Time = `date +%H:%M:%S`"
 elog "Current directory: $PWD"
 elog "Current user: $USER"
 elog "Display = $DISPLAY"
@@ -35,18 +36,19 @@ elog "Logs = $LOGS"
 elog "Arguments = $ARGS"
 elog "Currently logged in:"
 w >> "$LOGS"
-elog ""
-elog ""
+
 
 
 # Wait
-echo "Sleeping at boot to be nice"
+elog "Sleeping at boot to be nice"
 sleep 8
 
 
 
 
 # Run Program
+elog ""
+elog ""
 if [[ -z `whereis zenity` ]]; then
 	elog "Install zenity to get desktop notifications if LC crashes."
 	./LazyCron.py $ARGS >> "$LOGS" 2>&1
