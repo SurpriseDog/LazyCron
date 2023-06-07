@@ -166,7 +166,7 @@ First test the program in a terminal window to make sure everything works as exp
   * Then run `crontab -e` and add the following line:
     - @reboot sleep 8; export DISPLAY=:0; <insert path to LazyCron>/LazyCron.py <your options here> > /tmp/lazycron_logs.txt 2>&1
     - Making sure to change the display number if needed.
-  * Finally reboot and check `/tmp/lazycron_logs.txt` to make sure it's running
+  * Finally reboot and check `/tmp/lazycron_logs.txt` to make sure it's running correctly!
 
 
 ## Troubleshooting:
