@@ -157,14 +157,14 @@ Not sure if your schedule will work correctly? Run the program with the --testin
 
 ## Running Automatically on Reboot in Linux:
 
-First test the program in a terminal window to make sure everything works as expected. When satisfied you can make it start automatically on boot using cron tab.
+First test the program in a terminal window, to make sure everything works as expected. When satisfied, you can make it start automatically on boot using crontab.
 
   * Run `crontab -e` and add the following line:
     - `@reboot sleep 8; <insert path to lc.launcher.sh> <insert your arguments>`
     - For example on my machine, I would type:
     	- @reboot /home/MYUSERNAME/git/LazyCron/lc.launcher.sh --skip --idle 3h
 	- Make sure to edit the file path and arguments correctly!
-	- Make sure to use lc.launcher.sh and not the main program file!
+	- Make sure to use `lc.launcher.sh` and not the main program file!
 
   * Finally reboot and check the logs in `/tmp/lazycron_logs.txt` to make sure it's running correctly!
 

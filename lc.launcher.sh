@@ -8,8 +8,8 @@ cd `dirname "$0"`
 
 
 # Setup Logging
-LOGS="/tmp/lazycron_logs.txt"
-truncate -s 0 $LOGS
+LOGS="/tmp/lazycron.logs.$USER.txt"
+truncate -s 0 "$LOGS"
 elog(){ echo "ELOG $*"; echo "ELOG $*" >> "$LOGS"; }
 
 
@@ -51,7 +51,7 @@ elog ""
 elog ""
 if [[ -z `whereis zenity` ]]; then
 	elog "Install zenity to get desktop notifications if LC crashes."
-	./LazyCron.py $ARGS >> "$LOGS" 2>&1
+	python3 -u ./LazyCron.py $ARGS >> "$LOGS" 2>&1
 else
-	./LazyCron.py $ARGS >> "$LOGS" 2>&1 || zenity --info "info" --timeout=99999999 --text="LazyCron error at `date +%H:%M`"
+	python3 -u ./LazyCron.py $ARGS >> "$LOGS" 2>&1 || zenity --info "info" --timeout=99999999 --text="LazyCron error at `date +%H:%M`"
 fi
