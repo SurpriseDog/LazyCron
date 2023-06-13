@@ -16,7 +16,7 @@ fi
 
 
 # Setup Logging
-LOGS="/tmp/LazyCron_logs/lc.launcher.logs.$USER.$txt"
+LOGS="/tmp/LazyCron_logs/lc.launcher.logs.$USER.txt"
 mkdir -p /tmp/LazyCron_logs/
 truncate -s 0 "$LOGS"
 elog(){ echo -e "ELOG $*"; echo -e "ELOG $*" >> "$LOGS"; }
