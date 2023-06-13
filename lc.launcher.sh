@@ -2,15 +2,24 @@
 # Launch LazyCron from a limited environment like crontab
 
 
+
+
 ARGS="$*"
 cd `dirname "$0"`
 
 
+# Wait
+if [[ `sed 's/ .*//;s/\..*//' /proc/uptime` -lt 64 ]]; then
+	echo "Sleeping at boot to be nice"
+	sleep 8
+fi
+
 
 # Setup Logging
-LOGS="/tmp/lazycron.logs.$USER.txt"
+LOGS="/tmp/LazyCron_logs/lc.launcher.logs.$USER.$txt"
+mkdir -p /tmp/LazyCron_logs/
 truncate -s 0 "$LOGS"
-elog(){ echo "ELOG $*"; echo "ELOG $*" >> "$LOGS"; }
+elog(){ echo -e "ELOG $*"; echo -e "ELOG $*" >> "$LOGS"; }
 
 
 # Choose correct display
@@ -39,16 +48,9 @@ w >> "$LOGS"
 
 
 
-# Wait
-elog "Sleeping at boot to be nice"
-sleep 8
-
-
-
 
 # Run Program
-elog ""
-elog ""
+elog "\n\n\n"
 if [[ -z `whereis zenity` ]]; then
 	elog "Install zenity to get desktop notifications if LC crashes."
 	python3 -u ./LazyCron.py $ARGS >> "$LOGS" 2>&1

@@ -165,8 +165,7 @@ First test the program in a terminal window, to make sure everything works as ex
     	- @reboot /home/MYUSERNAME/git/LazyCron/lc.launcher.sh --skip --idle 3h
 	- Make sure to edit the file path and arguments correctly!
 	- Make sure to use `lc.launcher.sh` and not the main program file!
-
-  * Finally reboot and check the logs in `/tmp/lazycron_logs.txt` to make sure it's running correctly!
+  * Finally reboot and check the logs in `/tmp/LazyCron_logs/` to make sure it's running correctly!
 
 
 ## Troubleshooting:
