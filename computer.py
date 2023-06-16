@@ -58,7 +58,8 @@ class Computer:
             self.batt_capacity = open(self.batt_capacity)
 
         if not self.batt_capacity or not self.lid_state:
-            print("Disregard these messages if you are running on a laptop system.")
+            print("Disregard these messages if you are running on a desktop system.")
+            print("which does not have a battery or laptop lid.")
 
 
     def lid_open(self,):
