@@ -57,6 +57,10 @@ class Computer:
                 print("Using battery capacity file:", self.batt_capacity)
             self.batt_capacity = open(self.batt_capacity)
 
+        if not self.batt_capacity or not self.lid_state:
+            print("Disregard these messages if you are running on a laptop system.")
+
+
     def lid_open(self,):
         if self.lid_state:
             return read_state(self.lid_state).split()[1] == "open"
