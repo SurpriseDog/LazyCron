@@ -1,18 +1,18 @@
 #!/bin/bash
 # Launch LazyCron from a limited environment like crontab
 
-
-
-
-ARGS="$*"
-cd `dirname "$0"`
-
-
 # Wait
 if [[ `sed 's/ .*//;s/\..*//' /proc/uptime` -lt 64 ]]; then
 	echo "Sleeping at boot to be nice"
 	sleep 8
 fi
+
+
+
+
+
+ARGS="$*"
+cd `dirname "$0"`
 
 
 # Setup Logging
@@ -31,8 +31,11 @@ fi
 export DISPLAY=$DISPLAY
 
 
-# Setup Path
+# Setup environmental variables:
 export PATH=`sed 's/PATH=//' /etc/environment`
+elog "Sourcing: $HOME/.profile"
+source $HOME/.profile
+
 
 
 # Log status
@@ -45,6 +48,9 @@ elog "Logs = $LOGS"
 elog "Arguments = $ARGS"
 elog "Currently logged in:"
 w >> "$LOGS"
+elog "printenv:"
+printenv >> "$LOGS"
+
 
 
 
