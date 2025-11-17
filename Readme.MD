@@ -185,11 +185,12 @@ Ideas that could be implemented in the future. File a bug report if with the tag
   * Boolean logic for requirements: `idle 2m OR today 3h`
      - Currently all requirements run as `AND`.
 
-## Donations
-
-Support my work by donating BTC: bc1q4vxrzas6kjww5zmr2fzaxnh2a7uf65fyzjdwtt
-
-
   * Mac / Windows Support
 
   * New requirement fields, let me know what you want to see!
+
+
+
+## Donations
+
+Support my work by donating BTC: bc1q4vxrzas6kjww5zmr2fzaxnh2a7uf65fyzjdwtt
